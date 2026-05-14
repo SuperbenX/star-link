@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Star-Link · 观星者</title>
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<style>
+/* ─── Reset & Base ─────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:"PingFang SC","-apple-system","Helvetica Neue",sans-serif;
+  background:#faf7f3;color:#1c1814;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ─── Splash ──────────────────────────────────────── */
+#splash{
+  position:fixed;inset:0;z-index:200;
+  background:#faf7f3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .5s ease,transform .5s ease;
+}
+#splash.hide{opacity:0;transform:scale(1.04);pointer-events:none}
+.splash-title{
+  font-size:44px;font-weight:250;letter-spacing:8px;color:#1c1814;
+  text-align:center;line-height:1.3;
+}
+.splash-title .dot{color:#d4bc9a;display:inline-block;margin:0 6px}
+.splash-en{
+  font-size:15px;font-weight:300;letter-spacing:8px;
+  color:#b0a89a;margin-top:14px;
+}
+.splash-tagline{
+  font-size:12px;font-weight:400;letter-spacing:3px;
+  color:#b0a89a;margin-top:28px;
+}
+.splash-cta{
+  margin-top:44px;
+  background:#d4bc9a;color:#1c1814;
+  border:none;border-radius:6px;padding:12px 44px;
+  font-size:13px;font-weight:500;letter-spacing:2px;
+  cursor:pointer;transition:all .2s;
+}
+.splash-cta:hover{background:#e5d4b8}
+.splash-cta:active{transform:scale(.97)}
+
+/* ─── App ─────────────────────────────────────────── */
+#app{display:none;height:100dvh;flex-direction:column;background:#faf7f3}
+#app.show{display:flex}
+
+/* ─── Content ─────────────────────────────────────── */
+.content{
+  flex:1;overflow-y:auto;padding:24px 16px 80px;
+  -webkit-overflow-scrolling:touch;scroll-behavior:smooth;
+}
+.content::-webkit-scrollbar{display:none}
+.page{display:none;animation:fadeIn .35s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── Push Notification ──────────────────────────── */
+.push-toast{
+  background:#ffffff;border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;margin-bottom:20px;overflow:hidden;
+  animation:slideDown .4s ease;
+}
+@keyframes slideDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+.push-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px 4px;
+}
+.push-app{font-size:12px;color:#b0a89a;letter-spacing:.5px}
+.push-time{font-size:11px;color:#c5bdb5}
+.push-body{
+  padding:4px 18px 18px;
+  font-size:15px;font-weight:350;line-height:1.6;color:#1c1814;
+}
+.push-actions{display:flex;border-top:1px solid rgba(0,0,0,.06)}
+.push-btn{
+  flex:1;text-align:center;padding:10px 0;
+  font-size:13px;font-weight:400;cursor:pointer;
+  transition:background .12s;
+}
+.push-btn:first-child{border-right:1px solid rgba(0,0,0,.06)}
+.push-btn:active{background:rgba(212,188,154,.1)}
+.push-btn-primary{color:#d4bc9a}
+.push-btn-secondary{color:#b0a89a}
+
+/* ─── Daily Card ──────────────────────────────────── */
+.daily-card{
+  background:#ffffff;border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;padding:28px 24px;max-width:400px;
+}
+.daily-title{
+  font-size:20px;font-weight:300;letter-spacing:-.2px;color:#1c1814;
+  margin-bottom:12px;text-align:center;
+}
+.daily-divider{
+  border:none;height:1px;
+  background:linear-gradient(90deg,transparent,#d4bc9a,transparent);
+  margin:0 auto 16px;width:56px;
+}
+.daily-body{font-size:15px;font-weight:350;line-height:1.8;color:#3a342e;letter-spacing:0px}
+.daily-body p{margin-bottom:12px}
+.daily-footer-divider{
+  border:none;height:1px;
+  background:linear-gradient(90deg,transparent,#d4bc9a,transparent);
+  margin:20px auto 14px;width:36px;
+}
+.daily-keyword{
+  font-size:11px;color:#b0a89a;text-align:center;letter-spacing:3px;
+}
+
+/* ─── Moon ────────────────────────────────────────── */
+.moon-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:12px;color:#b0a89a;margin-bottom:16px;
+}
+
+/* ─── Section ─────────────────────────────────────── */
+.section-title{
+  font-size:15px;font-weight:400;letter-spacing:0px;color:#7a7268;
+  margin:28px 0 14px;padding-bottom:6px;
+  border-bottom:1px solid rgba(0,0,0,.05);
+}
+
+/* ─── Tables ──────────────────────────────────────── */
+.planet-table,.aspect-table{
+  width:100%;border-collapse:collapse;font-size:13px;
+  background:#ffffff;border-radius:10px;overflow:hidden;
+  border:1px solid rgba(0,0,0,.06);
+}
+.planet-table th,.aspect-table th{
+  text-align:left;padding:10px 14px;font-weight:400;color:#b0a89a;
+  font-size:11px;letter-spacing:1px;
+  border-bottom:1px solid rgba(0,0,0,.04);
+}
+.planet-table td,.aspect-table td{
+  padding:10px 14px;border-bottom:1px solid rgba(0,0,0,.03);
+  color:#7a7268;font-weight:350;
+}
+.planet-table tr:last-child td,.aspect-table tr:last-child td{border-bottom:none}
+.planet-table .pname,.aspect-table .aspect-name{color:#1c1814;font-weight:400}
+.aspect-score{color:#d4bc9a;font-weight:450}
+
+/* ─── Synastry ────────────────────────────────────── */
+.syn-form{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.syn-input-group{display:flex;gap:8px}
+.syn-input{
+  flex:1;background:#ffffff;border:1px solid rgba(0,0,0,.08);
+  border-radius:6px;padding:10px 14px;color:#1c1814;font-size:13px;
+  font-family:"PingFang SC",sans-serif;appearance:none;
+  -webkit-appearance:none;
+}
+.syn-input:focus{outline:none;border-color:#d4bc9a}
+.syn-input::placeholder{color:#c5bdb5}
+.syn-submit{
+  background:#d4bc9a;color:#1c1814;border:none;
+  border-radius:6px;padding:11px 0;font-size:13px;font-weight:500;
+  cursor:pointer;transition:background .15s;
+}
+.syn-submit:hover{background:#e5d4b8}
+.syn-result{display:none}.syn-result.show{display:block;margin-top:20px}
+
+/* ─── Profile ─────────────────────────────────────── */
+.profile-card{
+  background:#ffffff;border:1px solid rgba(0,0,0,.06);
+  border-radius:12px;padding:16px 20px;
+}
+.profile-section-title{
+  font-size:11px;color:#b0a89a;letter-spacing:1px;
+  margin-top:18px;margin-bottom:2px;
+}
+.profile-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:13px 0;border-bottom:1px solid rgba(0,0,0,.04);
+  font-size:14px;color:#3a342e;cursor:pointer;
+}
+.profile-item:last-child{border-bottom:none}
+.profile-item:active{opacity:.7}
+.profile-arrow{color:#c5bdb5;font-size:12px}
+
+/* ─── Tab Bar ─────────────────────────────────────── */
+.tab-bar{
+  position:fixed;bottom:0;left:0;right:0;
+  height:64px;padding-bottom:env(safe-area-inset-bottom);
+  background:rgba(250,247,243,.92);backdrop-filter:blur(20px);
+  -webkit-backdrop-filter:blur(20px);
+  border-top:1px solid rgba(0,0,0,.06);
+  display:flex;align-items:center;z-index:50;
+}
+.tab-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;cursor:pointer;transition:color .12s;
+  padding:6px 0;border:none;background:transparent;
+  color:#b0a89a;font-size:10px;letter-spacing:.3px;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab-item.active{color:#d4bc9a}
+.tab-item .tab-icon{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1}
+.tab-item .tab-label{font-size:10px;font-weight:400;margin-top:1px}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-title">
+    观<span class="dot">·</span>星<span class="dot">·</span>者
+  </div>
+  <div class="splash-en">Star-Link</div>
+  <div class="splash-tagline">天上的事，说给人听。</div>
+  <button class="splash-cta" onclick="enterApp()">开始</button>
+</div>
+
+<div id="app">
+  <div class="content" id="content">
+
+    <!-- 星图 -->
+    <div class="page active" id="page-chart">
+      <div class="daily-card" style="margin-bottom:20px">
+        <div class="daily-title" id="dailyTitle">你今天的星图</div>
+        <hr class="daily-divider">
+        <div class="daily-body" id="dailyBody"></div>
+        <hr class="daily-footer-divider">
+        <div class="daily-keyword" id="dailyKeyword"></div>
+      </div>
+
+      <div class="moon-badge"><span id="moonPhaseText"></span></div>
+
+      <div class="section-title">行星位置</div>
+      <table class="planet-table" id="planetTable"><tbody></tbody></table>
+
+      <div class="section-title" style="margin-top:24px">活跃相位</div>
+      <table class="aspect-table" id="aspectTable"><tbody></tbody></table>
+    </div>
+
+    <!-- 日签 -->
+    <div class="page" id="page-daily">
+      <div class="push-toast" id="pushToast">
+        <div class="push-header">
+          <span class="push-app">星图</span>
+          <span class="push-time">现在</span>
+        </div>
+        <div class="push-body" id="pushBody"></div>
+        <div class="push-actions">
+          <div class="push-btn push-btn-secondary" onclick="closePush()">关闭</div>
+          <div class="push-btn push-btn-primary">查看</div>
+        </div>
+      </div>
+      <div class="daily-card" style="margin-top:16px">
+        <div class="daily-title" style="font-size:18px">日签</div>
+        <hr class="daily-divider">
+        <div class="daily-body" id="dailyDetail"></div>
+        <hr class="daily-footer-divider">
+        <div class="daily-keyword" id="dailyKeyword2"></div>
+      </div>
+    </div>
+
+    <!-- 合盘 -->
+    <div class="page" id="page-synastry">
+      <div class="section-title" style="margin-bottom:16px;border:none">合盘计算</div>
+      <div class="syn-form">
+        <div class="syn-input-group">
+          <input class="syn-input" id="synA" placeholder="你的名字" value="你">
+          <select class="syn-input" id="synASun">
+            <option>白羊</option><option>金牛</option><option>双子</option><option>巨蟹</option>
+            <option selected>狮子</option><option>处女</option><option>天秤</option><option>天蝎</option>
+            <option>射手</option><option>摩羯</option><option>水瓶</option><option>双鱼</option>
+          </select>
+          <select class="syn-input" id="synAMoon">
+            <option>白羊</option><option>金牛</option><option>双子</option><option>巨蟹</option>
+            <option>狮子</option><option>处女</option><option>天秤</option><option>天蝎</option>
+            <option>射手</option><option>摩羯</option><option>水瓶</option><option selected>双鱼</option>
+          </select>
+        </div>
+        <div class="syn-input-group">
+          <input class="syn-input" id="synB" placeholder="对方名字" value="Ta">
+          <select class="syn-input" id="synBSun">
+            <option>白羊</option><option>金牛</option><option selected>双子</option><option>巨蟹</option>
+            <option>狮子</option><option>处女</option><option>天秤</option><option>天蝎</option>
+            <option>射手</option><option>摩羯</option><option>水瓶</option><option>双鱼</option>
+          </select>
+          <select class="syn-input" id="synBMoon">
+            <option>白羊</option><option>金牛</option><option>双子</option><option>巨蟹</option>
+            <option>狮子</option><option>处女</option><option selected>天秤</option><option>天蝎</option>
+            <option>射手</option><option>摩羯</option><option>水瓶</option><option>双鱼</option>
+          </select>
+        </div>
+        <button class="syn-submit" onclick="calcSynastry()">查看合盘</button>
+      </div>
+      <div class="daily-card syn-result" id="synResult">
+        <div class="daily-title" style="font-size:17px" id="synTitle">A × B</div>
+        <hr class="daily-divider">
+        <div class="daily-body" id="synBody"></div>
+      </div>
+    </div>
+
+    <!-- 我 -->
+    <div class="page" id="page-profile">
+      <div class="section-title" style="margin-bottom:16px;border:none">Star-Link</div>
+      <div class="profile-card">
+        <div class="profile-section-title">订阅</div>
+        <div class="profile-item" onclick="alert('免费版 · 每日日签')">当前方案 <span class="profile-arrow">免费</span></div>
+        <div class="profile-section-title">设置</div>
+        <div class="profile-item">推送通知 <span class="profile-arrow">已开启</span></div>
+        <div class="profile-item">语言 <span class="profile-arrow">简体中文</span></div>
+        <div class="profile-section-title">其他</div>
+        <div class="profile-item">隐私政策 <span class="profile-arrow">›</span></div>
+        <div class="profile-item">关于 Star-Link <span class="profile-arrow">›</span></div>
+        <div class="profile-item" style="color:#c5bdb5">v1.0.0</div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-item active" data-page="chart" onclick="switchTab('chart',this)">
+      <span class="tab-icon">☉</span><span class="tab-label">星图</span>
+    </button>
+    <button class="tab-item" data-page="daily" onclick="switchTab('daily',this)">
+      <span class="tab-icon">☾</span><span class="tab-label">日签</span>
+    </button>
+    <button class="tab-item" data-page="synastry" onclick="switchTab('synastry',this)">
+      <span class="tab-icon">⊗</span><span class="tab-label">合盘</span>
+    </button>
+    <button class="tab-item" data-page="profile" onclick="switchTab('profile',this)">
+      <span class="tab-icon">◈</span><span class="tab-label">我</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+const OBLIQUITY=23.4392911;
+const PLANETS=['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
+const PCN={Sun:'太阳',Moon:'月亮',Mercury:'水星',Venus:'金星',Mars:'火星',Jupiter:'木星',Saturn:'土星',Uranus:'天王星',Neptune:'海王星',Pluto:'冥王星'};
+const ZODIAC=[
+  {name:'白羊座',min:0,max:30},{name:'金牛座',min:30,max:60},{name:'双子座',min:60,max:90},
+  {name:'巨蟹座',min:90,max:120},{name:'狮子座',min:120,max:150},{name:'处女座',min:150,max:180},
+  {name:'天秤座',min:180,max:210},{name:'天蝎座',min:210,max:240},{name:'射手座',min:240,max:270},
+  {name:'摩羯座',min:270,max:300},{name:'水瓶座',min:300,max:330},{name:'双鱼座',min:330,max:360},
+];
+const ASPECTS=[
+  {name:'合相',angle:0,orb:8,i:5},{name:'对分相',angle:180,orb:8,i:4},
+  {name:'三分相',angle:120,orb:6,i:3},{name:'四分相',angle:90,orb:6,i:3},{name:'六分相',angle:60,orb:4,i:2},
+];
+const PRI={Sun:10,Moon:9,Mercury:7,Venus:8,Mars:7,Jupiter:5,Saturn:5,Uranus:3,Neptune:3,Pluto:2};
+const PH={
+  Sun:{id:'身份',d:'活力、ego、你想被看见的方式'},Moon:{id:'情绪',d:'安全感、你累了需要什么'},
+  Mercury:{id:'思维',d:'沟通、你怎么说话'},Venus:{id:'爱',d:'美感、什么让你愉悦'},
+  Mars:{id:'行动力',d:'冲突、欲望、驱动'},Jupiter:{id:'扩张',d:'什么可以大胆'},
+  Saturn:{id:'责任',d:'不能逃避的事'},Uranus:{id:'突变',d:'打破常规'},
+  Neptune:{id:'梦幻',d:'需要清醒的领域'},Pluto:{id:'真相',d:'不得不面对的东西'},
+};
+const MN=['新月','蛾眉月','上弦月','盈凸月','满月','亏凸月','下弦月','残月'];
+const AE=['融合，无法分开','对立，需要平衡','顺流，不费力','张力，不舒服但必要','机会，伸手就有'];
+
+function norm(d){return((d%360)+360)%360}
+function ad(a,b){const d=Math.abs(norm(a)-norm(b));return Math.min(d,360-d)}
+function gs(lon){const n=norm(lon);for(const s of ZODIAC)if(n>=s.min&&n<s.max)return s.name;return ZODIAC[0].name}
+function gd(lon){const n=norm(lon);for(const s of ZODIAC)if(n>=s.min&&n<s.max)return Math.floor(n-s.min);return 0}
+function e2e(ra,dec){const ob=OBLIQUITY*Math.PI/180,r=ra*Math.PI/180,d=dec*Math.PI/180;return{lon:(Math.atan2(Math.sin(r)*Math.cos(ob)+Math.tan(d)*Math.sin(ob),Math.cos(r))*180/Math.PI+360)%360}}
+
+function calcAll(){
+  const now=new Date(),t=Astronomy.MakeTime(now),o=new Astronomy.Observer(0,0,0);
+  const p=[];
+  for(const b of PLANETS){try{const e=Astronomy.Equator(Astronomy.Body[b],t,o,true,true);const c=e2e(e.ra,e.dec);p.push({body:b,name:PCN[b],lon:c.lon})}catch(e){}}
+  p.sort((a,b)=>a.lon-b.lon);
+  const as=[];
+  for(let i=0;i<p.length;i++)for(let j=i+1;j<p.length;j++){
+    const d=ad(p[i].lon,p[j].lon);
+    for(const a of ASPECTS){const orb=Math.abs(d-a.angle);if(orb<=a.orb){as.push({p1:p[i].body,p2:p[j].body,n1:p[i].name,n2:p[j].name,angle:Math.round(d),aspect:a.name,orb:Math.round(orb*10)/10,score:Math.round(a.i*(PRI[p[i].body]+PRI[p[j].body])*(1-orb/a.orb*.4)*10)/10,exp:AE[ASPECTS.indexOf(a)]});break}}
+  }
+  as.sort((a,b)=>b.score-a.score);
+  const mp=Astronomy.MoonPhase(t),age=mp*29.53058867/360;
+  let mn=Math.round(age/3.69)%8;if(age<1.5||age>28)mn=0;
+  return{p,as,moon:{name:MN[mn],age:Math.round(age)},date:now.toISOString().slice(0,10)};
+}
+
+function genContent(top){
+  if(!top)return{push:'"今天天上很安静。但你未必是。"',body:'今天没有显著的相位活动。外部推动力较弱，今天更多靠你的内在驱动力。',detail:'建议：列一个"今天只做三件事"的清单。注意：没有外力推动的日子，反而最容易看清楚自己。',kw:'安静 · 内观'};
+  const h1=PH[top.p1]||{id:'能量',d:''},h2=PH[top.p2]||{id:'能量',d:''};
+  const n1=PCN[top.p1],n2=PCN[top.p2];
+  let body,detail,pushes={合相:`"${n1}和${n2}在你体内合体了。今天你藏不住任何东西。"`,三分相:'"今天的事，不用力也能做成。别搞砸了。"',四分相:'"你感到的不舒服，不是坏事。是东西在长。"',对分相:'"你不需要选一边。你只需要知道你在中间。"',六分相:'"机会不是来了——是经过。伸手还是缩手，选一个。"'};
+  if(top.aspect==='合相'){body=`${n1}（${h1.id}）和${n2}（${h2.id}）在你的星盘上合相——这两股能量正在你体内融合。你在「${h1.d}」上的变化会直接影响「${h2.d}」。`;detail='建议：留意今天第一次让你感到"不对"的直觉。注意：融合期不适合做重大决定——等能量分开再回头看。'}
+  else if(top.aspect==='三分相'){body=`${n1}（${h1.id}）和${n2}（${h2.id}）正形成三分相——你最近在「${h1.d}」和「${h2.d}」之间找到了自然的平衡。`;detail='建议：趁这股顺流，把拖了很久的一件事做了。注意：顺流不等于躺平——你仍需在场。'}
+  else if(top.aspect==='四分相'){body=`${n1}（${h1.id}）和${n2}（${h2.id}）正在打架——四分相意味着你在「${h1.d}」和「${h2.d}」之间感到拉扯。`;detail='建议：选一边，先行动再调整。注意：原地纠结比选错更消耗。'}
+  else if(top.aspect==='对分相'){body=`${n1}（${h1.id}）和${n2}（${h2.id}）在对面对你——你不得不在「${h1.d}」和「${h2.d}」之间做选择。`;detail='建议：找一个人把你在想的事情说出来。注意：不要为了"不伤和气"吞下自己的真实感受。'}
+  else{body=`${n1}（${h1.id}）和${n2}（${h2.id}）给你递了一个机会。它不强迫你，但也不会等你太久。`;detail='建议：今天做一件你一直"想过但没做"的小事。注意：机会只敲一次，而且很轻。'}
+  const mm={合相:'融合',三分相:'顺流',四分相:'张力',对分相:'平衡',六分相:'机会'};
+  const kw={Sun:'自我',Moon:'情绪',Mercury:'沟通',Venus:'关系',Mars:'行动',Jupiter:'扩展',Saturn:'责任',Uranus:'突破',Neptune:'直觉',Pluto:'转化'};
+  return{push:pushes[top.aspect]||'"今天天上发生了一件事。"',body,detail,kw:(mm[top.aspect]||'·')+' · '+(kw[top.p1]||'')+' · '+(kw[top.p2]||'')};
+}
+
+function render(){
+  const d=calcAll(),top=d.as[0],c=genContent(top);
+  document.getElementById('moonPhaseText').textContent='☽ '+d.moon.name+' · 月龄 '+d.moon.age+' 天';
+  document.getElementById('dailyBody').innerHTML='<p>'+c.body+'</p><p style="color:#7a7268;font-size:14px">'+c.detail+'</p>';
+  document.getElementById('dailyKeyword').textContent=c.kw;
+  document.getElementById('pushBody').textContent=c.push;
+  const dd=document.getElementById('dailyDetail');dd.innerHTML='<p>'+c.body+'</p><p style="color:#7a7268;font-size:14px">'+c.detail+'</p>';
+  document.getElementById('dailyKeyword2').textContent=c.kw;
+  const ptb=document.querySelector('#planetTable tbody');ptb.innerHTML='';
+  for(const p of d.p){const tr=document.createElement('tr');tr.innerHTML='<td class="pname">'+p.name+'</td><td>'+gs(p.lon)+'</td><td>'+gd(p.lon)+'°</td><td style="color:#c5bdb5;font-size:11px">'+p.lon.toFixed(2)+'°</td>';ptb.appendChild(tr)}
+  const atb=document.querySelector('#aspectTable tbody');atb.innerHTML='';
+  for(const a of d.as.slice(0,10)){const tr=document.createElement('tr');tr.innerHTML='<td class="aspect-score">'+a.score+'</td><td class="aspect-name">'+a.aspect+'</td><td>'+a.n1+'</td><td>'+a.n2+'</td><td style="color:#c5bdb5">'+a.angle+'°</td>';atb.appendChild(tr)}
+  const ss=d.p.filter(p=>p.body!=='Sun'&&p.body!=='Moon').map(p=>gs(p.lon));document.getElementById('dailyTitle').textContent=[...new Set(ss)].length<=2?'你的星图今天很集中':'你今天的星图';
+}
+
+function enterApp(){document.getElementById('splash').classList.add('hide');document.getElementById('app').classList.add('show');render()}
+function switchTab(n,el){document.querySelectorAll('.tab-item').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-'+n).classList.add('active');document.getElementById('content').scrollTop=0}
+function closePush(){document.getElementById('pushToast').style.display='none'}
+function calcSynastry(){
+  const aN=document.getElementById('synA').value||'你',bN=document.getElementById('synB').value||'Ta';
+  const aS=document.getElementById('synASun').value,aM=document.getElementById('synAMoon').value;
+  const bS=document.getElementById('synBSun').value,bM=document.getElementById('synBMoon').value;
+  const signs=['白羊','金牛','双子','巨蟹','狮子','处女','天秤','天蝎','射手','摩羯','水瓶','双鱼'];
+  const diff=Math.abs(signs.indexOf(aS)-signs.indexOf(bS));
+  const rel=diff<=1||diff>=11?'热烈相吸':diff<=3||diff>=9?'舒服自在':diff<=5||diff>=7?'需要磨合':'灵魂感';
+  const mood=aM===bM?'你们的月亮在同一星座——情绪上天然理解对方。':'你们的月亮在不同星座——需要学习对方的情绪语言。';
+  document.getElementById('synTitle').textContent=aN+' × '+bN;
+  document.getElementById('synBody').innerHTML='<p>你们之间的关系核心：<strong style="color:#d4bc9a">'+rel+'</strong>。</p><p>你（'+aS+'）的太阳和他（'+bS+'）的太阳呈'+['合','','','三合','','六合','对宫','六合','','三合','','合'][diff]+'——'+['同一类人，互相镜映。','能玩到一起，也能聊到一起。','有吸引力但也有不同。','互相尊重又彼此独立。','看到对方就像看到另一个版本。','轻松，不需要解释太多。','吸引力最强，但也最难相处。','互补，你有的他没有。','互相欣赏但不容易靠近。','像老朋友一样自然。','有火花，但不是易燃的那种。','第一眼就认出了对方。'][diff]+'</p><p>'+mood+'</p><p style="margin-top:10px;font-size:14px;color:#7a7268">建议：今晚选一部你们都没看过的老电影，从头看到尾不碰手机。</p>';
+  document.getElementById('synResult').classList.add('show');document.getElementById('synResult').scrollIntoView({behavior:'smooth',block:'center'});
+}
+window.addEventListener('DOMContentLoaded',render);
+</script>
+</body>
+</html>

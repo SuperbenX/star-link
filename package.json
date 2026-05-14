@@ -1,0 +1,16 @@
+{
+  "name": "co-star-cn-demo",
+  "version": "1.0.0",
+  "description": "Star-Link · 观星者 — AI 占星应用",
+  "main": "demo.js",
+  "scripts": {
+    "demo": "node demo.js",
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.0",
+    "express": "^4.21.0",
+    "openai": "^6.37.0"
+  }
+}
