@@ -17,25 +17,36 @@ const BASE_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function strHash(s) {
+  let hash = 5381;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) + hash) + s.charCodeAt(i);
+  }
+  return Math.abs(hash);
+}
+
 async function callDeepSeek(messages, options = {}) {
-  const { temperature = 0.7, maxTokens = 2048, retries = 2 } = options;
+  const { temperature = 0.7, maxTokens = 2048, retries = 2, seed } = options;
 
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const body = {
+        model: 'deepseek-chat',
+        messages,
+        temperature,
+        max_tokens: maxTokens,
+        stream: false,
+      };
+      if (seed != null) body.seed = seed;
+
       const res = await fetch(BASE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${API_KEY}`,
         },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-          stream: false,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
@@ -53,4 +64,4 @@ async function callDeepSeek(messages, options = {}) {
   throw lastErr || new Error('DeepSeek API 调用失败');
 }
 
-module.exports = { callDeepSeek };
+module.exports = { callDeepSeek, strHash };

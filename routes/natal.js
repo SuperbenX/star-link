@@ -9,7 +9,7 @@ const astro = require('../engine/astronomy');
 const aspects = require('../engine/aspects');
 const houses = require('../engine/houses');
 const cache = require('../services/cache');
-const { callDeepSeek } = require('../services/deepseek');
+const { callDeepSeek, strHash } = require('../services/deepseek');
 const { buildNatalPrompt } = require('../services/natal-prompt');
 
 const OBLIQUITY = 23.4392911;
@@ -88,7 +88,7 @@ router.post('/reading', async (req, res) => {
     const raw = await callDeepSeek([
       { role: 'system', content: system },
       { role: 'user', content: user },
-    ], { temperature: 0.8, maxTokens: 4096 });
+    ], { temperature: 0.0, maxTokens: 4096, seed: strHash(`${birthDate}_${birthTime || '12:00'}_${lat}_${lng}`) });
 
     let reading;
     try {

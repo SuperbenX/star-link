@@ -37,7 +37,7 @@ router.get('/:userId', (req, res) => {
 /* ═══ 行运-本命日签（DeepSeek 生成）═══ */
 const Astronomy = require('astronomy-engine');
 const transit = require('../engine/transit');
-const { callDeepSeek } = require('../services/deepseek');
+const { callDeepSeek, strHash } = require('../services/deepseek');
 const { buildDailyPrompt } = require('../services/daily-prompt');
 
 const OBLIQUITY = 23.4392911;
@@ -100,7 +100,7 @@ router.post('/reading', async (req, res) => {
     const raw = await callDeepSeek([
       { role: 'system', content: system },
       { role: 'user', content: user },
-    ], { temperature: 0.8, maxTokens: 4096 });
+    ], { temperature: 0.0, maxTokens: 4096, seed: strHash(`${birthDate}_${targetDate}`) });
 
     let reading;
     try { reading = JSON.parse(raw); }

@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const astro = require('../engine/astronomy');
 const houses = require('../engine/houses');
-const { callDeepSeek } = require('../services/deepseek');
+const { callDeepSeek, strHash } = require('../services/deepseek');
 const cache = require('../services/cache');
 
 const Astronomy = require('astronomy-engine');
@@ -38,6 +38,24 @@ const ASPECTS = [
   { name: '对分相', angle: 180, orb: 8, intensity: 4 },
 ];
 const PRIORITY = { Sun: 10, Moon: 9, Mercury: 7, Venus: 8, Mars: 7, Jupiter: 5, Saturn: 5, Uranus: 3, Neptune: 3, Pluto: 2 };
+const RELATION_LABELS = { love: '恋人', friend: '朋友', colleague: '同事/合伙人', family: '家人', ambiguous: '暧昧探索' };
+const RELATION_FRAMES = {
+  love: '你将这段关系按「恋人」分析。关注情感吸引、化学反应、亲密相容性。解读语气偏向浪漫关系。',
+  friend: '你将这段关系按「朋友」分析。关注沟通共鸣、共同兴趣、情感支持、个人成长。降低爱情/性吸引力的权重，聚焦友谊动力。',
+  colleague: '你将这段关系按「同事/合伙人」分析。关注工作配合度、决策互补、执行力、职业成长。淡化情感层面，聚焦火星/土星/中天的互动。',
+  family: '你将这段关系按「家人」分析。关注安全感、情感羁绊、责任模式、成长底色。用家庭动力学角度解读，强调月亮/四宫/土星的互动。',
+  ambiguous: '你将这段关系按「暧昧探索」分析。保留吸引力分析，但侧重「是否适合进一步发展」。给出客观评估，不默认关系走向。'
+};
+const GENDER_LABELS = { male: '男', female: '女', neutral: '不限' };
+const GROUP_LABELS = { friend: '朋友群', work: '工作群', family: '家庭群', interest: '兴趣群' };
+const GROUP_FRAMES = {
+  friend: '你将这个群组按「朋友群」分析。关注社交氛围、情感支持、共同娱乐、友谊动力。',
+  work: '你将这个群组按「工作群」分析。关注协作效率、决策模式、角色分工、目标达成。强化火星/土星/中天的权重，淡化纯社交层面。',
+  family: '你将这个群组按「家庭群」分析。关注情感羁绊、安全感模式、代际动力、责任分配。用家庭动力学角度解读。',
+  interest: '你将这个群组按「兴趣群」分析。关注共同热情、创造性能量、知识交流、社群氛围。'
+};
+
+
 
 function calcSynastryAspects(posA, posB) {
   const results = [];
@@ -64,12 +82,13 @@ function calcSynastryAspects(posA, posB) {
 
 router.post('/deepseek', async (req, res) => {
   try {
-    const { birthDataA, birthDataB, nameA, nameB } = req.body;
+    const { birthDataA, birthDataB, nameA, nameB, relationshipType = 'love', genderA = 'neutral', genderB = 'neutral' } = req.body;
     if (!birthDataA || !birthDataB) {
       return res.status(400).json({ error: '请提供两人的出生信息' });
     }
 
-    const cacheKey = `synastry_ds_${JSON.stringify(birthDataA)}_${JSON.stringify(birthDataB)}`;
+    const stableKey = o => JSON.stringify(o, Object.keys(o).sort());
+    const cacheKey = `synastry_ds_${stableKey(birthDataA)}_${stableKey(birthDataB)}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
@@ -102,13 +121,20 @@ router.post('/deepseek', async (req, res) => {
     const sunB = posB.find(p => p.body === 'Sun');
     const moonB = posB.find(p => p.body === 'Moon');
 
+    const typeLabel = RELATION_LABELS[relationshipType] || '恋人';
+    const genderLabelA = GENDER_LABELS[genderA] || '不限';
+    const genderLabelB = GENDER_LABELS[genderB] || '不限';
+    const frameNote = RELATION_FRAMES[relationshipType] || RELATION_FRAMES.love;
+
     const systemPrompt = `你是一个冷静、一针见血的占星师，专门分析两人之间的合盘关系。你的风格：
 
 1. 用第三人称描述两人的互动模式
 2. 第一句必须有冲击力——让人截图发给对方那种
 3. 基于双方星盘的具体配置，点破他们为什么会有这种化学反应
 4. 说真话。指出痛处比说好听话更有价值
-5. 全文用中文，别绕弯子`;
+5. 全文用中文，别绕弯子
+
+本次分析的关系类型：「${typeLabel}」。${frameNote}`;
 
     const userPrompt = `请分析以下两人的合盘关系。
 
@@ -141,6 +167,11 @@ router.post('/deepseek', async (req, res) => {
     "challenge": {
       "title": "需要留意",
       "analysis": "这段关系中最容易产生摩擦的领域（2-3句话）",
+      "score": "高/中/低"
+    },
+    "business": {
+      "title": "共事合作",
+      "analysis": "结合双方火星、土星和事业宫位的互动，分析他们在工作合作中的默契度、互补性和潜在冲突（2-3句话）",
       "score": "高/中/低"
     }
   },
@@ -184,7 +215,7 @@ ${fmtAspects(aspectsBA)}
     const raw = await callDeepSeek([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ], { temperature: 0.7, maxTokens: 4096 });
+    ], { temperature: 0.0, maxTokens: 4096, seed: strHash(`${stableKey(birthDataA)}_${stableKey(birthDataB)}_${relationshipType}`) });
 
     let reading;
     try { reading = JSON.parse(raw); } catch (_) {
@@ -196,6 +227,9 @@ ${fmtAspects(aspectsBA)}
     const result = {
       nameA: nameA || 'Person A',
       nameB: nameB || 'Person B',
+      relationshipType: relationshipType || 'love',
+      genderA: genderA || 'neutral',
+      genderB: genderB || 'neutral',
       reading,
       aspects: aspectsAB.slice(0, 6),
     };
@@ -211,7 +245,7 @@ ${fmtAspects(aspectsBA)}
 /* ═══ 群组分析 ═══ */
 router.post('/group', async (req, res) => {
   try {
-    const { members, groupName } = req.body;
+    const { members, groupName, groupType = 'friend' } = req.body;
     if (!members || members.length < 2) {
       return res.status(400).json({ error: '请至少选择 2 个成员' });
     }
@@ -258,6 +292,9 @@ router.post('/group', async (req, res) => {
       .slice(0, 6)
       .map(([s, n]) => `${s} ×${n}`).join(' · ');
 
+    const groupTypeLabel = GROUP_LABELS[groupType] || '朋友群';
+    const groupFrame = GROUP_FRAMES[groupType] || GROUP_FRAMES.friend;
+
     const systemPrompt = `你是一个冷静、洞察力极强的占星师，专门分析群体星盘互动。你的风格：
 
 1. 分析群组成员之间的能量互动和动态平衡
@@ -265,7 +302,9 @@ router.post('/group', async (req, res) => {
 3. 结合具体星盘配置解释为什么群组会有这种氛围
 4. 给出的建议要具体、可操作
 5. 不讨好、不恐吓——只说观察和洞见
-6. 全文用中文`;
+6. 全文用中文
+
+本次分析的群组类型：「${groupTypeLabel}」。${groupFrame}`;
 
     const userPrompt = `请分析以下群组的星盘配置，生成一份群组动力分析报告。
 
@@ -302,12 +341,53 @@ ${memberCharts}
   }
 }
 
+  "domains": {
+    "emotional": {
+      "title": "情感氛围",
+      "analysis": "群组整体的情感能量如何，成员之间在情绪上能否互相理解和支持（2-3句话）",
+      "score": "高/中/低"
+    },
+    "intellectual": {
+      "title": "沟通效率",
+      "analysis": "群组内沟通是否顺畅，谁的表达方式和谁的接收方式最匹配（2-3句话）",
+      "score": "高/中/低"
+    },
+    "action": {
+      "title": "行动力",
+      "analysis": "群组整体的行动节奏如何，谁负责推进，谁负责稳住（2-3句话）",
+      "score": "高/中/低"
+    },
+    "challenge": {
+      "title": "潜在摩擦",
+      "analysis": "群组最容易在什么场景下产生内耗或分歧（2-3句话）",
+      "score": "高/中/低"
+    },
+    "business": {
+      "title": "合作效能",
+      "analysis": "这个群组在工作或项目合作中的整体效能如何，谁适合决策，谁适合执行（2-3句话）",
+      "score": "高/中/低"
+    }
+  },
+  "roles": [
+    { "member": "成员名", "role": "在群组中的天然角色", "why": "基于星盘配置的解释（1-2句话）" }
+  ],
+  "strengths": ["群组最强大的3个优势", "优势2", "优势3"],
+  "challenges": ["群组最容易出现的3个问题", "挑战2", "挑战3"],
+  "keywords": ["关键词1", "关键词2", "关键词3"],
+  "advice": {
+    "collaboration": "协作建议——这群人怎么合作最高效，谁适合负责什么角色（2-3句话，给出具体分工和协作方式）",
+    "decision": "决策建议——如何避免因星盘配置导致的决策偏见，谁适合最后拍板（2-3句话）",
+    "conflict": "冲突处理建议——成员之间最容易因什么起冲突，具体在什么场景下爆发，怎么化解（2-3句话）",
+    "growth": "共同成长建议——这个群组可以一起做的成长方向，适合一起尝试什么活动或挑战（2-3句话，有画面感）"
+  }
+}
+
 评分说明：分析应基于每个成员的太阳、月亮、上升、火星、金星等关键行星的位置和互动。`;
 
     const raw = await callDeepSeek([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ], { temperature: 0.7, maxTokens: 4096 });
+    ], { temperature: 0.0, maxTokens: 4096, seed: strHash(`${groupName || 'group'}_${groupType}_${members.length}`) });
 
     let reading;
     try { reading = JSON.parse(raw); } catch (_) {
