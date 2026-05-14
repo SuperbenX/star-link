@@ -19,6 +19,7 @@ app.use('/api/natal', require('./routes/natal'));
 app.use('/api/synastry-ds', require('./routes/synastry-deepseek'));
 app.use('/api/void', require('./routes/void'));
 app.use('/api/transits', require('./routes/transits'));
+app.use('/api/predict', require('./routes/predict'));
 
 // 健康检查
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
