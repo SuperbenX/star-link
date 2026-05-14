@@ -1,30 +1,48 @@
 /**
- * POST /api/user/register — 注册
- * GET  /api/user/:id — 获取用户信息
+ * 用户系统 — 注册/登录/数据同步
  */
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
-const DATA_FILE = path.join(__dirname, '..', 'data', 'users.json');
+const db = require('../services/database');
 
-function readUsers() { try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (_) { return []; } }
-function writeUsers(u) { fs.writeFileSync(DATA_FILE, JSON.stringify(u, null, 2), 'utf8'); }
+function auth(req, res, next) {
+  const token = req.headers.authorization;
+  if (!token) return res.status(401).json({ error: '未登录' });
+  const user = db.getUserByToken(token);
+  if (!user) return res.status(401).json({ error: '登录已过期' });
+  req.user = user;
+  next();
+}
 
 router.post('/register', (req, res) => {
-  const { name, birthDate, birthTime, birthPlace } = req.body;
-  if (!name) return res.status(400).json({ error: '请提供姓名' });
-  const users = readUsers();
-  const id = String(Date.now());
-  users.push({ id, name, birthDate: birthDate||'', birthTime: birthTime||'', birthPlace: birthPlace||'', createdAt: new Date().toISOString() });
-  writeUsers(users);
-  res.json({ id, name });
+  const { nickname, password } = req.body;
+  if (!nickname || !password) return res.status(400).json({ error: '请提供昵称和密码' });
+  if (password.length < 4) return res.status(400).json({ error: '密码至少4位' });
+  const result = db.register(nickname, password);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ token: result.user.token, nickname: result.user.nickname });
 });
 
-router.get('/:id', (req, res) => {
-  const user = readUsers().find(u => u.id === req.params.id);
-  if (!user) return res.status(404).json({ error: '用户不存在' });
-  res.json(user);
+router.post('/login', (req, res) => {
+  const { nickname, password } = req.body;
+  if (!nickname || !password) return res.status(400).json({ error: '请提供昵称和密码' });
+  const result = db.login(nickname, password);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json({ token: result.user.token, nickname: result.user.nickname });
+});
+
+router.post('/sync', auth, (req, res) => {
+  const { data } = req.body;
+  if (!data || typeof data !== 'object') return res.status(400).json({ error: '请提供数据' });
+  for (const [key, value] of Object.entries(data)) {
+    db.saveData(req.user.id, key, value);
+  }
+  res.json({ ok: true });
+});
+
+router.get('/data', auth, (req, res) => {
+  const data = db.getAllData(req.user.id);
+  res.json({ data });
 });
 
 module.exports = router;

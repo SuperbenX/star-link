@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "astronomy-engine": "^2.1.0",
+    "better-sqlite3": "^12.10.0",
     "express": "^4.21.0",
     "openai": "^6.37.0"
   }
