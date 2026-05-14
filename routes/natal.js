@@ -121,4 +121,43 @@ router.post('/reading', async (req, res) => {
   }
 });
 
+/* ═══ 出生时间校正 ═══ */
+router.post('/ascendants', (req, res) => {
+  try {
+    const { birthDate, lat, lng } = req.body;
+    if (!birthDate || lat == null || lng == null) {
+      return res.status(400).json({ error: '请提供出生信息' });
+    }
+
+    const ranges = [
+      { key: '凌晨', label: '凌晨 (0:00-5:59)', time: '03:00' },
+      { key: '早上', label: '早上 (6:00-11:59)', time: '09:00' },
+      { key: '下午', label: '下午 (12:00-17:59)', time: '15:00' },
+      { key: '晚上', label: '晚上 (18:00-23:59)', time: '21:00' },
+    ];
+
+    const results = ranges.map(r => {
+      const [h, m] = r.time.split(':').map(Number);
+      const birthUTC = new Date(Date.UTC(
+        parseInt(birthDate.slice(0, 4)),
+        parseInt(birthDate.slice(5, 7)) - 1,
+        parseInt(birthDate.slice(8, 10)),
+        h - 8, m, 0
+      ));
+      const { ascendant } = calcAscendant(birthUTC, lat, lng);
+      return {
+        key: r.key,
+        label: r.label,
+        time: r.time,
+        ascendant,
+      };
+    });
+
+    res.json({ ranges: results });
+  } catch (err) {
+    console.error('上升计算失败:', err.message);
+    res.status(500).json({ error: '上升计算失败: ' + err.message });
+  }
+});
+
 module.exports = router;
