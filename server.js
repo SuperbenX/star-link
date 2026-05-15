@@ -27,6 +27,7 @@ app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toI
 // SPA fallback
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
+if (!process.env.VERCEL) {
 app.listen(PORT, () => {
   console.log(`\n  ┌──────────────────────────────────────────┐`);
   console.log(`  │           星 · 链                      │`);
@@ -35,5 +36,6 @@ app.listen(PORT, () => {
   console.log(`  │   http://localhost:${String(PORT).padEnd(5)}                      │`);
   console.log(`  └──────────────────────────────────────────┘\n`);
 });
+}
 
 module.exports = app;

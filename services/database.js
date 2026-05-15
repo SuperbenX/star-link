@@ -4,31 +4,40 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'star-link.db');
-const db = new Database(DB_PATH);
+const isVercel = !!process.env.VERCEL;
+const DATA_DIR = isVercel ? '/tmp' : path.join(__dirname, '..', 'data');
+if (!isVercel && !fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-db.pragma('journal_mode = WAL');
+const DB_PATH = path.join(DATA_DIR, 'star-link.db');
+let db;
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nickname TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    token TEXT UNIQUE,
-    created_at TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS user_data (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    data_key TEXT NOT NULL,
-    data_value TEXT,
-    updated_at TEXT DEFAULT (datetime('now')),
-    UNIQUE(user_id, data_key),
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  );
-`);
+try {
+  db = new Database(DB_PATH);
+  db.pragma('journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nickname TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      token TEXT UNIQUE,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS user_data (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      data_key TEXT NOT NULL,
+      data_value TEXT,
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(user_id, data_key),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+  `);
+} catch (err) {
+  console.error('数据库初始化失败:', err.message);
+  db = { prepare: () => ({ run: () => {}, get: () => null, all: () => [] }) };
+}
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
