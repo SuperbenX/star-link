@@ -76,7 +76,7 @@ function switchTab(i,b){if(i===currentTab)return;document.querySelectorAll('.tab
 var pushShown=false;
 function showPushBanner(){if(pushShown||!window._pushText)return;document.getElementById('pushBannerText').textContent=window._pushText;setTimeout(function(){document.getElementById('pushBanner').classList.add('show')},100);pushShown=true;}
 function dismissPush(){document.getElementById('pushBanner').classList.remove('show');}
-function enterApp(){document.getElementById('splash').classList.add('hide');document.getElementById('app').classList.add('show');document.getElementById('headerDate').textContent=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric'});loadData();}
+function enterApp(){document.getElementById('splash').classList.add('hide');document.getElementById('app').classList.add('show');var _bd=localStorage.getItem('birth_data');if(!_bd||_bd==='null'){showOnboard();return}document.getElementById('headerDate').textContent=new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric'});loadData();}
 async function loadData(){try{var r=await fetch('/api/daily/guest');var d=await r.json();window._pushText=d.push;}catch(e){}await loadDailyReading();initChart();}
 function initChart(){var el=document.getElementById('chartContent');var s=localStorage.getItem('natal_reading');if(s){try{renderNatalReading(JSON.parse(s));return;}catch(_){}}renderBirthForm();}
 
