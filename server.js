@@ -35,3 +35,5 @@ app.listen(PORT, () => {
   console.log(`  │   http://localhost:${String(PORT).padEnd(5)}                      │`);
   console.log(`  └──────────────────────────────────────────┘\n`);
 });
+
+module.exports = app;
