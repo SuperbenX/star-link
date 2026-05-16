@@ -88,7 +88,7 @@ router.post('/deepseek', async (req, res) => {
     }
 
     const stableKey = o => JSON.stringify(o, Object.keys(o).sort());
-    const cacheKey = `synastry_ds_${stableKey(birthDataA)}_${stableKey(birthDataB)}`;
+    const cacheKey = `synastry_ds_${stableKey(birthDataA)}_${stableKey(birthDataB)}_${relationshipType}`;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 
