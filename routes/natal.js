@@ -94,8 +94,21 @@ router.post('/reading', async (req, res) => {
     try {
       reading = JSON.parse(raw);
     } catch (_) {
+      let jsonStr = null;
       const m = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (m) reading = JSON.parse(m[1]);
+      if (m) jsonStr = m[1];
+      else {
+        const braceIdx = raw.indexOf('{');
+        if (braceIdx >= 0) {
+          let depth = 0, end = -1;
+          for (let i = braceIdx; i < raw.length; i++) {
+            if (raw[i] === '{') depth++;
+            else if (raw[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+          }
+          if (end > braceIdx) jsonStr = raw.slice(braceIdx, end);
+        }
+      }
+      if (jsonStr) { try { reading = JSON.parse(jsonStr); } catch (_2) { throw new Error('DeepSeek 响应不是有效的 JSON'); } }
       else throw new Error('DeepSeek 响应不是有效的 JSON');
     }
 
