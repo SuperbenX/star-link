@@ -305,8 +305,6 @@ function saveOnboard(){
   var o=document.getElementById("onboard");
   if(o)o.parentNode.removeChild(o);
   if(unk){switchTab(5);return}
-  el.innerHTML='<div style="padding:40px 0"><div class="skeleton skel-card" style="height:200px"></div></div>';
-  fetch("/api/natal/reading",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({birthDate:data.birthDate,birthTime:data.birthTime,lat:data.lat,lng:data.lng,name:data.name})}).then(function(r){return r.json()}).then(function(d){if(d.error)throw Error(d.error);localStorage.setItem("natal_reading",JSON.stringify(d));renderNatalReading(d);initChart();loadData();switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"))}).catch(function(e){switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"));loadData()});
-}
+  switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"));loadData();var _bd_el=document.getElementById("bd");if(_bd_el&&data.birthDate){_bd_el.value=data.birthDate;var _bt_el=document.getElementById("bt");if(_bt_el)_bt_el.value=data.birthTime}}
 </script></body>
 </html>`
