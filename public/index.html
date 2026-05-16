@@ -308,5 +308,33 @@ function clearCache(){var patterns=['natal_reading','daily_reading_','synastry_v
 function resetApp(){if(!confirm('确定重置所有数据？'))return;var keep=['profile_notif'],keys=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(keep.indexOf(k)===-1)keys.push(k);}keys.forEach(function(k){localStorage.removeItem(k);});location.reload();}
 
 function showPlanet(b){var pn={Sun:"太阳",Moon:"月亮",Mercury:"水星",Venus:"金星",Mars:"火星",Jupiter:"木星",Saturn:"土星",Uranus:"天王星",Neptune:"海王星",Pluto:"冥王星"};var rd=window._nr?window._nr[b.toLowerCase()]:null;if(!rd||!rd.analysis){alert((pn[b]||b)+"解读暂不可用，请重新生成星盘");return}var ov=document.createElement("div");ov.style.cssText="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;padding:24px";var md=document.createElement("div");md.style.cssText="background:#121216;border-radius:14px;padding:28px 24px;max-width:360px;width:100%;position:relative;animation:slideUp .3s";md.innerHTML='<div style="position:absolute;top:14px;right:14px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.5);font-size:16px" onclick="this.parentElement.parentElement.parentElement.removeChild(this.parentElement.parentElement)">&#x2715;</div><div style="font-family:Menlo,monospace;font-size:9px;color:rgba(255,255,255,0.56);letter-spacing:2px;margin-bottom:6px">'+(pn[b]||b)+'</div><div style="font-family:Menlo,monospace;font-size:10px;color:rgba(255,255,255,0.46);margin-bottom:12px">'+rd.position+'</div><div style="font-size:14px;font-weight:400;color:rgba(255,255,255,0.9);margin-bottom:10px">'+rd.title+'</div><div style="font-size:13px;line-height:1.8;color:rgba(255,255,255,0.85)">'+rd.analysis+'</div>'+(rd.keyword?'<div style="display:inline-block;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.64);font-size:9px;padding:3px 10px;border-radius:999px;margin-top:12px;letter-spacing:1px">'+rd.keyword+'</div>':'')+'</div>';ov.appendChild(md);ov.onclick=function(e){if(e.target===ov)document.body.removeChild(ov)};document.body.appendChild(ov)}function gotoPlanet(b){window._chartSec=0;window._hl=b;var s=localStorage.getItem('natal_reading');if(s){try{renderNatalReading(JSON.parse(s))}catch(_){}}var tb=document.querySelector('.tab-item[data-idx="1"]');switchTab(1,tb)}function saveChart(){var nd=window._nd;if(!nd){alert('请先生成星盘');return}var c=document.createElement('canvas');c.width=600;c.height=850;var cx=c.getContext('2d');cx.fillStyle='#0e0e12';cx.fillRect(0,0,c.width,c.height);var svg=document.querySelector('#chartContent svg');if(!svg){alert('请先生成星盘');return}var xml=new XMLSerializer().serializeToString(svg);var img=new Image();img.onload=function(){cx.drawImage(img,50,70,500,500);var sun=nd.positions.find(function(x){return x.body==='Sun'});var moon=nd.positions.find(function(x){return x.body==='Moon'});var asc=nd.ascendant;cx.fillStyle='rgba(255,255,255,0.9)';cx.font='14px "PingFang SC",sans-serif';cx.textAlign='center';var b3y=610;cx.fillText('☉ '+sun.sign+' '+sun.degree+'°    ☽ '+moon.sign+' '+moon.degree+'°    ↑ '+asc.sign+' '+asc.degree+'°',300,b3y);cx.fillStyle='rgba(255,255,255,0.4)';cx.font='12px "PingFang SC",sans-serif';cx.fillText('你的专属星盘 · 基于 NASA 天文数据生成',300,b3y+35);var rd=nd.reading;if(rd&&rd.sun&&rd.sun.analysis){var s=rd.sun.analysis.substring(0,80)+(rd.sun.analysis.length>80?'...':'');cx.fillStyle='#999';cx.font='11px "PingFang SC",sans-serif';cx.fillText('"'+s+'"',300,b3y+65)}cx.fillStyle='rgba(255,255,255,0.25)';cx.font='10px Menlo,monospace';cx.fillText(window.location.href,300,b3y+100);c.toBlob(function(b){var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='star-link-chart.png';a.click()})};img.src='data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(xml)))}function setupDailyPills(){if(window._dailySec===undefined)window._dailySec=0;var el=document.getElementById('dailyContent');if(!el||el.querySelector('.daily-pills'))return;var kids=el.children;var ti=-1;for(var i=0;i<kids.length;i++){if(kids[i].classList&&kids[i].classList.contains('daily-card-today')){ti=i;break}}if(ti<0)return;var p=document.createElement('div');p.className='chart-pills daily-pills';var lb=['今日天象','领域解读','相位之间','生活处方'];for(var pi=0;pi<4;pi++){var b=document.createElement('button');b.className='chart-pill'+(pi===window._dailySec?' active':'');b.textContent=lb[pi];b.onclick=function(n){return function(){window._dailySec=n;if(window._cd)renderDailyReading(window._cd)}}(pi);p.appendChild(b)}el.insertBefore(p,kids[ti]);setTimeout(function(){var rk=el.children;var pi2=-1;for(var i=0;i<rk.length;i++){if(rk[i].classList&&rk[i].classList.contains('daily-pills')){pi2=i;break}}if(pi2<0)return;var sec=0;for(var i=pi2+1;i<rk.length;i++){var c=rk[i];var txt=c.textContent||'';if(txt.indexOf('领域')>=0&&(c.classList&&c.classList.contains('sec-title')))sec=1;else if(txt.indexOf('相位')>=0&&(c.classList&&c.classList.contains('sec-title')))sec=2;else if(c.className&&c.className.indexOf('aspect-chip')>=0)sec=2;else if(txt.indexOf('行动指南')>=0)sec=3;if(sec!==window._dailySec)c.style.display='none';else c.style.display=''}},100)}</script>
+
+<script>
+function saveOnboard(){
+  var nm=document.getElementById("obn").value.trim()||"\u6211";
+  var bd=document.getElementById("obd").value;
+  if(!bd){alert("\u8bf7\u9009\u62e9\u51fa\u751f\u65e5\u671f");return}
+  var bt=document.getElementById("obt").value;
+  var cv=document.getElementById("obcity").value;
+  var lat,lng;
+  if(cv==="other"){
+    var cn=document.getElementById("obcityO").value.trim();
+    if(!cn){alert("\u8bf7\u8f93\u5165\u57ce\u5e02\u540d");return}
+    lat=30;lng=120
+  }else{
+    var sp=cv.split(",");
+    lat=parseFloat(sp[0]);lng=parseFloat(sp[1])
+  }
+  var unk=document.getElementById("obunk").checked;
+  var data={name:nm,birthDate:bd,birthTime:unk?"12:00":bt,lat:lat,lng:lng,timeUnknown:unk};
+  localStorage.setItem("birth_data",JSON.stringify(data));
+  try{fetch("/api/user/sync",{method:"POST",headers:{"Content-Type":"application/json","Authorization":localStorage.getItem("sl_token")||""},body:JSON.stringify({data:{birth_data:JSON.stringify(data)}})}).catch(function(){})}catch(e){}
+  var o=document.getElementById("onboard");
+  if(o)o.parentNode.removeChild(o);
+  if(unk){switchTab(5);return}
+  loadData();
+  switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"));
+}
+</script>
 </body>
 </html>`
