@@ -306,7 +306,7 @@ function saveOnboard(){
   if(o)o.parentNode.removeChild(o);
   if(unk){switchTab(5);return}
   el.innerHTML='<div style="padding:40px 0"><div class="skeleton skel-card" style="height:200px"></div></div>';
-  fetch("/api/natal/reading",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({birthDate:data.birthDate,birthTime:data.birthTime,lat:data.lat,lng:data.lng,name:data.name})}).then(function(r){return r.json()}).then(function(d){if(d.error)throw Error(d.error);localStorage.setItem("natal_reading",JSON.stringify(d));renderNatalReading(d);loadData();switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"))}).catch(function(e){switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"));loadData()});
+  fetch("/api/natal/reading",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({birthDate:data.birthDate,birthTime:data.birthTime,lat:data.lat,lng:data.lng,name:data.name})}).then(function(r){return r.json()}).then(function(d){if(d.error)throw Error(d.error);localStorage.setItem("natal_reading",JSON.stringify(d));renderNatalReading(d);initChart();loadData();switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"))}).catch(function(e){switchTab(1,document.querySelector(".tab-item[data-idx=\"1\"]"));loadData()});
 }
 </script></body>
 </html>`
