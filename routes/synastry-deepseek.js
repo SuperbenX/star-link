@@ -250,6 +250,12 @@ router.post('/group', async (req, res) => {
       return res.status(400).json({ error: '请至少选择 2 个成员' });
     }
 
+    const stableKey = o => JSON.stringify(o, Object.keys(o).sort());
+    const memberKey = members.map(m => stableKey({ birthDate: m.birthDate, birthTime: m.birthTime, lat: m.lat, lng: m.lng })).sort().join('|');
+    const cacheKey = `group_${memberKey}_${groupType}`;
+    const cached = cache.get(cacheKey);
+    if (cached) return res.json(cached);
+
     // 每个成员的本命盘
     const charts = [];
     for (const m of members) {
@@ -396,7 +402,9 @@ ${memberCharts}
       else throw new Error('DeepSeek 响应格式错误');
     }
 
-    res.json({ groupName: groupName || '未命名群组', memberCount: members.length, reading });
+    const result = { groupName: groupName || '未命名群组', memberCount: members.length, reading };
+    cache.set(cacheKey, result);
+    res.json(result);
   } catch (err) {
     console.error('群组分析失败:', err.message);
     res.status(500).json({ error: '群组分析失败: ' + err.message });

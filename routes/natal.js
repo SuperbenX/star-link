@@ -88,7 +88,7 @@ router.post('/reading', async (req, res) => {
     const raw = await callDeepSeek([
       { role: 'system', content: system },
       { role: 'user', content: user },
-    ], { temperature: 0.0, maxTokens: 4096, seed: strHash(`${birthDate}_${birthTime || '12:00'}_${lat}_${lng}`) });
+    ], { temperature: 0.1, maxTokens: 4096, seed: strHash(`${birthDate}_${birthTime || '12:00'}_${lat}_${lng}`) });
 
     let reading;
     try {
