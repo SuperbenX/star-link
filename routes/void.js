@@ -100,7 +100,7 @@ router.post('/ask', async (req, res) => {
     const houseList = houses.formatHouses(houseCusps);
     const domainLabel = DOMAIN_CONTEXT[domain] || domain;
 
-    const systemPrompt = `你是一个冷静、一针见血的占星顾问。用户问关于「${domainLabel}」的问题，你要结合本命星盘回答。
+    const systemPrompt = `你是一个冷静、一针见血的性格分析顾问。用户问关于「${domainLabel}」的问题，你要结合本命星盘回答。
 
 风格要求：
 1. 用第二人称"你"，第一句直接戳痛点

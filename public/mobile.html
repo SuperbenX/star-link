@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>星链</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0e0e12;font-family:"PingFang SC","-apple-system","Helvetica Neue",sans-serif;color:rgba(255,255,255,0.9);-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%}
+
+/* Splash */
+#splash{position:fixed;inset:0;z-index:999;background:radial-gradient(#211d2e,#14111e);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s,transform .6s}
+#splash.hide{opacity:0;transform:scale(1.03);pointer-events:none}
+.splash-title{font-size:32px;font-weight:200;letter-spacing:10px;color:rgba(255,255,255,0.9);animation:fadeUp .8s ease .1s both}
+.splash-sub{font-size:11px;letter-spacing:6px;color:rgba(255,255,255,0.5);margin-top:10px;animation:fadeUp .8s ease .3s both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* App Layout */
+#app{display:none;height:100dvh;flex-direction:column;background:#0e0e12}
+#app.show{display:flex}
+#scrollArea{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(8px + env(safe-area-inset-top,0px)) 16px 80px}
+#scrollArea::-webkit-scrollbar{display:none}
+
+/* Tab Bar */
+.tab-bar{position:fixed;bottom:0;left:0;right:0;height:56px;padding-bottom:env(safe-area-inset-bottom,0);background:rgba(20,17,30,0.95);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.06);display:flex;z-index:50}
+.tab-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:none;color:rgba(255,255,255,0.4);font-size:9px;cursor:pointer;padding:2px 0;font-family:inherit;letter-spacing:.5px}
+.tab-btn.active{color:#a78bfa}
+.tab-btn .icon{font-size:18px}
+
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-label{font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1.5px;margin-bottom:6px;display:block}
+.form-input,.form-select{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px 14px;font-size:15px;color:rgba(255,255,255,0.9);outline:none;font-family:inherit;box-sizing:border-box}
+.form-input:focus,.form-select:focus{border-color:#a78bfa}
+.form-input::placeholder{color:rgba(255,255,255,0.25)}
+.form-select option{background:#121216;color:rgba(255,255,255,0.9)}
+.btn-primary,.btn-secondary{width:100%;border-radius:8px;padding:14px;font-size:14px;cursor:pointer;font-family:inherit;letter-spacing:2px;margin-top:4px;border:none}
+.btn-primary{background:#a78bfa;color:#fff}
+.btn-primary:disabled{opacity:.3}
+.btn-secondary{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.6)}
+
+/* Cards */
+.card{background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:10px;padding:14px;margin-bottom:10px}
+
+/* Section Titles */
+.sec-title{font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin:20px 0 8px}
+
+/* Loading */
+.loading{display:flex;gap:8px;justify-content:center;padding:40px 0}
+.loading span{width:10px;height:10px;border-radius:50%;animation:pl 1.5s ease infinite;opacity:.3}
+.loading span:nth-child(1){background:#F5A623;animation-delay:0s}
+.loading span:nth-child(2){background:#A8A8A8;animation-delay:.12s}
+.loading span:nth-child(3){background:#8B7355;animation-delay:.24s}
+.loading span:nth-child(4){background:#D4899E;animation-delay:.36s}
+.loading span:nth-child(5){background:#D4735E;animation-delay:.48s}
+@keyframes pl{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}}
+
+/* Toast */
+.toast-overlay{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:200;background:rgba(0,0,0,0.85);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;max-width:80%;text-align:center}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-content{background:linear-gradient(180deg,#1a182c,#100e1e);border:1px solid rgba(167,139,250,0.12);border-radius:20px;padding:28px 24px;max-width:380px;width:100%;max-height:70vh;overflow-y:auto;position:relative}
+.modal-close{position:absolute;top:14px;right:14px;width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.35);font-size:16px;cursor:pointer}
+
+/* Daily Pills */
+.pill-group{display:flex;gap:6px;padding:4px 0;margin-bottom:8px;overflow-x:auto}
+.pill{flex-shrink:0;padding:5px 14px;border-radius:999px;font-size:10px;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-family:inherit}
+.pill.active{background:#a78bfa;color:#fff;border-color:#a78bfa}
+
+/* Daily Card */
+.daily-card{background:#121216;border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:16px;margin-bottom:10px}
+.daily-card-label{font-size:10px;color:rgba(255,255,255,0.4);letter-spacing:1px;margin-bottom:6px}
+.daily-divider{height:1px;background:rgba(255,255,255,0.06);margin:8px 0}
+.daily-push{font-size:16px;color:rgba(255,255,255,0.92);margin-bottom:10px;display:block}
+.daily-body{font-size:14px;color:rgba(255,255,255,0.78);line-height:1.8}
+.daily-hook{text-align:center;font-size:16px;color:rgba(255,255,255,0.5);display:block}
+.empty-state{text-align:center;padding:60px 0;font-size:13px;color:rgba(255,255,255,0.4)}
+.push-banner{background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.15);border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:13px;color:#c4b5fd;line-height:1.6}
+
+/* 每日星座日签（未登录） */
+.guest-sign-wrap{text-align:center;padding:18px 0 16px}
+.guest-sign-glyph{font-size:52px;color:#2DD4BF;line-height:1;margin-bottom:6px}
+.guest-sign-name{font-size:26px;font-weight:500;color:rgba(255,255,255,0.92);letter-spacing:1px}
+.guest-sign-sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px;letter-spacing:2px}
+.op-share-btn{width:100%;background:rgba(45,212,191,0.12);border:1px solid rgba(45,212,191,0.35);color:#2DD4BF;border-radius:8px;padding:14px;font-size:14px;cursor:pointer;margin:14px 0;font-family:inherit;letter-spacing:2px}
+.guest-cta{margin:6px 0 10px;padding:16px 18px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;cursor:pointer;text-align:center}
+.guest-cta-main{font-size:14px;color:rgba(255,255,255,0.85)}
+.guest-cta-sub{font-size:10px;color:rgba(255,255,255,0.4);margin-top:4px;line-height:1.6}
+
+/* Date Nav */
+.date-nav{display:flex;gap:4px;margin-bottom:12px}
+.date-btn{flex:1;text-align:center;padding:6px 2px;border-radius:6px;font-size:10px;color:rgba(255,255,255,0.5);background:none;border:1px solid transparent;cursor:pointer;font-family:inherit}
+.date-btn.active{background:rgba(167,139,250,0.15);border-color:rgba(167,139,250,0.3);color:#a78bfa}
+.date-btn .dow{font-size:8px;display:block;margin-top:2px;opacity:.6}
+
+/* Transit Alerts */
+.alert-card{padding:10px 12px;border-radius:8px;margin-bottom:6px;border-left:2px solid}
+.alert-high{background:rgba(167,139,250,0.12);border-color:#a78bfa}
+.alert-mid{background:rgba(255,217,61,0.08);border-color:#FFD93D}
+.alert-low{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.15)}
+.alert-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.alert-aspect{font-size:10px;color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:999px}
+.alert-bodies{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px}
+.alert-tip{font-size:10px;color:rgba(255,255,255,0.7);line-height:1.5}
+
+/* Aspect Chips */
+.aspect-chips{display:flex;flex-direction:column;gap:4px}
+.aspect-chip{display:flex;align-items:center;gap:8px;background:#121216;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px}
+.chip-score{font-size:12px;color:rgba(255,255,255,0.9);width:28px;text-align:right}
+.chip-name{font-size:10px;color:rgba(255,255,255,0.5);width:30px}
+.chip-bodies{flex:1;font-size:11px;color:rgba(255,255,255,0.7)}
+.chip-tip{font-size:9px;color:rgba(255,255,255,0.5);margin-top:2px;line-height:1.4}
+
+/* Domain Grid */
+.domain-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.domain-card{padding:10px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px}
+.domain-card-title{font-size:11px;color:#a78bfa;margin-bottom:4px;font-weight:400}
+.domain-card-body{font-size:11px;color:rgba(255,255,255,0.65);line-height:1.6}
+
+/* Advice Grid */
+.advice-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.advice-card{padding:8px 10px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:6px}
+.advice-label{font-size:7px;color:#a78bfa;letter-spacing:1px;margin-bottom:2px}
+.advice-text{font-size:11px;color:rgba(255,255,255,0.7);line-height:1.5}
+.tag{display:inline-block;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);font-size:10px;padding:2px 10px;border-radius:999px;margin:2px 4px}
+
+/* Big3 */
+.big3{display:flex;gap:8px;margin-bottom:10px}
+.big3-item{flex:1;background:#121216;border-radius:10px;padding:14px 8px;text-align:center}
+.big3-label{font-size:8px;color:rgba(255,255,255,0.4);letter-spacing:2px;margin-bottom:6px}
+.big3-sign{font-size:16px;font-weight:300;color:rgba(255,255,255,0.9)}
+.big3-deg{font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px}
+
+/* Elements */
+.elements{display:flex;gap:4px;margin-bottom:10px}
+.element-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.element-dot{width:10px;height:10px;border-radius:50%}
+.element-pct{font-size:14px;font-weight:400;font-family:Menlo,monospace;color:rgba(255,255,255,0.9)}
+.element-label{font-size:8px;color:rgba(255,255,255,0.4)}
+
+/* Planets */
+.planet-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.planet-cell{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;cursor:pointer}
+.planet-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.planet-name{font-size:11px;color:rgba(255,255,255,0.9)}
+.planet-pos{font-size:9px;color:rgba(255,255,255,0.4);margin-top:1px}
+
+/* Reading Cards */
+.reading-card{padding:12px 14px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:4px}
+.reading-card-title{font-size:12px;color:rgba(255,255,255,0.9);margin-bottom:2px}
+.reading-card-sub{font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:6px}
+.reading-card-body{font-size:12px;color:rgba(255,255,255,0.75);line-height:1.7}
+.reading-card-kw{display:inline-block;background:rgba(255,255,255,0.06);border-radius:999px;padding:2px 8px;font-size:8px;color:rgba(255,255,255,0.5);margin-top:6px}
+
+/* Friends */
+.friend-item{display:flex;align-items:center;gap:10px;padding:12px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:4px}
+.friend-name{font-size:14px;color:rgba(255,255,255,0.9)}
+.friend-sign{font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px}
+.friend-del{margin-left:auto;background:none;border:none;color:rgba(255,255,255,0.25);font-size:16px;cursor:pointer;padding:4px;font-family:inherit}
+
+/* Synastry */
+.syn-item{font-size:12px;color:rgba(255,255,255,0.7);padding:4px 0;line-height:1.6}
+.syn-role-card{padding:10px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:4px}
+.syn-role-name{font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:4px}
+.syn-role-why{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6}
+.syn-group-result{margin-bottom:12px}
+
+/* Void */
+.void-header{text-align:center;padding:20px 0}
+.void-title{font-size:20px;font-weight:200;letter-spacing:6px;color:rgba(255,255,255,0.9)}
+.void-sub{font-size:10px;letter-spacing:4px;color:rgba(255,255,255,0.4);margin-top:6px}
+.void-domains{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:14px}
+.void-btn{padding:6px 14px;border-radius:999px;font-size:10px;color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);cursor:pointer;font-family:inherit}
+.void-btn.active{background:rgba(167,139,250,0.12);color:#a78bfa;border-color:rgba(167,139,250,0.2)}
+.void-preset{display:block;width:100%;text-align:center;padding:10px;margin-bottom:4px;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.6);cursor:pointer;font-family:inherit}
+.void-input-wrap{display:flex;gap:6px;margin-top:10px}
+.void-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;font-size:14px;color:rgba(255,255,255,0.9);outline:none;font-family:inherit}
+.void-input::placeholder{color:rgba(255,255,255,0.25)}
+
+/* Profile */
+.profile-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);font-size:13px;color:rgba(255,255,255,0.75)}
+.profile-item:last-child{border-bottom:none}
+.profile-val{color:rgba(255,255,255,0.4);font-size:12px}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="splash-title">星·链</div>
+  <div class="splash-sub">天上的事，说给人听</div>
+</div>
+
+<div id="app">
+  <div id="scrollArea"></div>
+  <div class="tab-bar">
+    <button class="tab-btn" data-tab="0"><span class="icon">☉</span>日签</button>
+    <button class="tab-btn" data-tab="1"><span class="icon">♄</span>星图</button>
+    <button class="tab-btn" data-tab="2"><span class="icon">♂</span>星友</button>
+    <button class="tab-btn" data-tab="3"><span class="icon">⊕</span>合盘</button>
+    <button class="tab-btn" data-tab="4"><span class="icon">♆</span>虚空</button>
+    <button class="tab-btn" data-tab="5"><span class="icon">☿</span>我</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// Utilities
+// ═══════════════════════════════════════════════════════════════
+var API_BASE = 'https://xinglian.online';
+var currentTab = 0;
+var dailyData = null, dailySection = 0, selectedDate = null;
+var birthData = null, natalReading = null;
+var friends = [], groups = [];
+
+// ═══ 每日星座日签（未登录 · 12星座轮换）═══
+var previewSign = null;   // 未登录=当天轮换的星座名；登录=null（个性化）
+// 12 星座代表出生信息（当前年份首日 + 12:00 + 北京），年份用今年保证行运对得上
+var PREVIEW_BIRTHS = {
+  '白羊座':new Date().getFullYear()+'-03-21',
+  '金牛座':new Date().getFullYear()+'-04-20',
+  '双子座':new Date().getFullYear()+'-05-21',
+  '巨蟹座':new Date().getFullYear()+'-06-21',
+  '狮子座':new Date().getFullYear()+'-07-23',
+  '处女座':new Date().getFullYear()+'-08-23',
+  '天秤座':new Date().getFullYear()+'-09-23',
+  '天蝎座':new Date().getFullYear()+'-10-23',
+  '射手座':new Date().getFullYear()+'-11-22',
+  '摩羯座':new Date().getFullYear()+'-12-22',
+  '水瓶座':new Date().getFullYear()+'-01-20',
+  '双鱼座':new Date().getFullYear()+'-02-19'
+};
+var PREVIEW_SIGNS = ['白羊座','金牛座','双子座','巨蟹座','狮子座','处女座','天秤座','天蝎座','射手座','摩羯座','水瓶座','双鱼座'];
+var PREVIEW_GLYPHS = {白羊座:'♈',金牛座:'♉',双子座:'♊',巨蟹座:'♋',狮子座:'♌',处女座:'♍',天秤座:'♎',天蝎座:'♏',射手座:'♐',摩羯座:'♑',水瓶座:'♒',双鱼座:'♓'};
+// 按日期轮换：以当年1月1日为白羊座起点，每天顺延一个星座
+function getSignForDate(d){
+  var start=new Date(d.getFullYear(),0,1);
+  var day=Math.floor((d-start)/86400000);
+  return PREVIEW_SIGNS[((day%12)+12)%12];
+}
+function parseDateStr(s){
+  var p=s.split('-');
+  return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+}
+
+// Planets
+var PLANET_COLORS = {Sun:'#F5A623',Moon:'#A8A8A8',Mercury:'#8B7355',Venus:'#D4899E',Mars:'#D4735E',Jupiter:'#B8965A',Saturn:'#6B7B8D',Uranus:'#5E9B7A',Neptune:'#5A8FB4',Pluto:'#7A5EA8'};
+var PLANET_NAMES = {Sun:'太阳',Moon:'月亮',Mercury:'水星',Venus:'金星',Mars:'火星',Jupiter:'木星',Saturn:'土星',Uranus:'天王星',Neptune:'海王星',Pluto:'冥王星'};
+var TA = {合相:'能量正在融合汇聚，是新开始的好时机',六分相:'机会出现了但需要你主动伸手去抓住它',三分相:'事情进展顺利，能量站在你这边',四分相:'注意这个领域存在张力和挑战',对分相:'关系中需要找到平衡点'};
+var TI = {
+  太阳:{太阳:{合相:'自信和行动力都在线，今天适合推进重要决定',对分相:'关系中容易迷失自我，需要先明确自己的立场再沟通',四分相:'自我表达受阻，别硬来换个时间再说',三分相:'内外一致，想法和行动能同步，效率很高的一天',六分相:'新的自我认知正在形成，留意突然出现的念头'},
+        月亮:{合相:'身心合一的状态，感性和理性达成了一致',对分相:'内心需要和外在表现不一致，嘴上说没事心里其实有事',四分相:'内心不安，情绪波动比平时大，给自己空间',三分相:'情感流动顺畅，适合表达关心',六分相:'情绪被理解的感觉很好，适合找人聊聊'}},
+  月亮:{金星:{合相:'内心变得柔软，今天容易被感动也容易原谅',对分相:'情感需求没有被满足，与其等不如直接说出来',四分相:'感情中没有安全感，先搞清楚是对方还是自己的问题',三分相:'情感世界和谐，适合和家人共度安静的时光',六分相:'适合表达关心，一个问候就能拉近距离'},
+        火星:{合相:'情绪容易点燃，注意控制脾气别伤及无辜',对分相:'情绪和行动力在打架，心里想动但身体很诚实',四分相:'容易发脾气的一天，找个安全的方式释放',三分相:'情绪能转化为行动力，把感受变成行动',六分相:'有动力去做一直拖着的事，趁现在赶快动手'}},
+  水星:{金星:{合相:'甜言蜜语不费力，今天适合沟通感情',对分相:'沟通中容易过度讨好，说真话比好听话更重要',四分相:'言语容易伤人，开口前先想三秒',三分相:'沟通温柔顺畅，你说的对方听得懂',六分相:'轻松愉快的对话氛围，适合聊聊近况'},
+        火星:{合相:'说话直接不拐弯，今天适合说真话但注意分寸',对分相:'容易和人争论，不是每个观点都需要被反驳',四分相:'言语容易带刺，说的话比自己以为的更锋利',三分相:'思维敏捷反应快，讨论问题有好点子',六分相:'有效表达自己的需求，平时说不出口的话今天可以试试'}},
+  金星:{火星:{合相:'吸引力极强的一天，你身上有让人无法忽视的光芒',对分相:'感情和欲望在冲突，想要的未必是对自己好的',四分相:'感情容易起摩擦，给彼此留点空间',三分相:'主动一步会有惊喜，对某人有好感可以行动',六分相:'适合主动表达好感，不刻意的邀约最有效'}},
+  火星:{土星:{合相:'行动受阻的感觉，还需要再多准备一下',对分相:'容易感到被针对，冷静下来再看',四分相:'挫败感强，今天不适合做重大决定',三分相:'坚持就有回报，之前付出的努力今天能看到成果',六分相:'适合踏实推进，每一步都在为明天打基础'},
+        金星:{合相:'主动出击的好时机，有想法就去争取',对分相:'感情中有些火药味，不适合讨论敏感话题',四分相:'感情中容易不耐烦，小事会被放大',三分相:'热情中不失温柔，感情中的表现恰到好处',六分相:'适合主动表达，想说的话现在说效果最好'}},
+  木星:{太阳:{合相:'自信心在线运气加分，今天适合尝试新事物',对分相:'过度乐观会忽略风险，重要决定多问一个人',四分相:'好高骛远的一天，想法需要更实际的计划',三分相:'运气站在你这边，好事会发生',六分相:'小幸运不断，今天会遇到让人心情变好的小事'},
+        金星:{合相:'社交运极好，你在人群中发光',对分相:'过度放纵的倾向，享乐可以但别过头',四分相:'对他人期望过高容易失望，降低期待',三分相:'关系融洽，和朋友或伴侣相处顺畅',六分相:'有机会认识有趣的新朋友，主动聊几句'}},
+  土星:{太阳:{合相:'压力也是成长的催化剂，每一分努力都不会白费',对分相:'容易自我怀疑，但你的能力比你以为的更强',四分相:'受阻感明显，不代表方向错了只是需要时间',三分相:'努力被人看见了，你的坚持正在被认可',六分相:'适合做长期规划，今天的思考比平时更深入'},
+        金星:{合相:'感情进入需要认真对待的阶段',对分相:'关系中感到孤单，有些话还没说开',四分相:'感情进入考验期，需要两个人沟通',三分相:'感情经过沉淀后更稳定',六分相:'适合认真谈一次未来，把心里的话摊开聊'}}
+};
+
+function toDateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')}
+function todayStr(offset){var d=new Date();if(offset)d.setDate(d.getDate()+offset);return toDateStr(d)}
+function getDateNav(){var dates=[],t=new Date();for(var i=-7;i<=7;i++){var d=new Date(t);d.setDate(d.getDate()+i);dates.push({str:toDateStr(d),md:(d.getMonth()+1)+'/'+d.getDate(),dow:['日','一','二','三','四','五','六'][d.getDay()],isToday:i===0})}return dates}
+function hasBirth(){return birthData!==null}
+function toast(msg){var t=document.createElement('div');t.className='toast-overlay';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},1800)}
+function apiPost(path,data){return fetch(API_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json()})}
+function apiGet(path){return fetch(API_BASE+path).then(function(r){return r.json()})}
+function store(key,val){if(val===undefined)return JSON.parse(localStorage.getItem(key)||'null');localStorage.setItem(key,JSON.stringify(val))}
+function zidx(sign){return['白羊座','金牛座','双子座','巨蟹座','狮子座','处女座','天秤座','天蝎座','射手座','摩羯座','水瓶座','双鱼座'].indexOf(sign)}
+function calcElements(positions){var c={fire:0,earth:0,air:0,water:0},emap={火象:['白羊座','狮子座','射手座'],土象:['金牛座','处女座','摩羯座'],风象:['双子座','天秤座','水瓶座'],水象:['巨蟹座','天蝎座','双鱼座']};for(var p of positions){for(var k in emap){if(emap[k].indexOf(p.sign)>=0){c[['fire','earth','air','water']['火土风水'.indexOf(k[0])]]++;break}}}var t=c.fire+c.earth+c.air+c.water||1;return{fire:Math.round(c.fire/t*100),earth:Math.round(c.earth/t*100),air:Math.round(c.air/t*100),water:Math.round(c.water/t*100)}}
+
+// TI text lookup
+function getTransitTip(transitBody,natalBody,aspect){
+  if(TI[transitBody]&&TI[transitBody][natalBody]&&TI[transitBody][natalBody][aspect])return TI[transitBody][natalBody][aspect];
+  return TA[aspect]||'';
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Tab Navigation
+// ═══════════════════════════════════════════════════════════════
+document.querySelector('.tab-bar').addEventListener('click',function(e){
+  var btn=e.target.closest('.tab-btn');
+  if(!btn)return;
+  switchTab(parseInt(btn.dataset.tab));
+});
+
+function switchTab(idx){
+  currentTab=idx;
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',i===idx)});
+  var el=$('scrollArea');
+  switch(idx){
+    case 0:renderDaily();break;
+    case 1:renderChart();break;
+    case 2:renderFriends();break;
+    case 3:renderSynastryForm();break;
+    case 4:renderVoid();break;
+    case 5:renderProfile();break;
+  }
+  el.scrollTop=0;
+}
+
+function $(id){return document.getElementById(id)}
+
+// ═══════════════════════════════════════════════════════════════
+// Init
+// ═══════════════════════════════════════════════════════════════
+
+// Week energy bar
+var weekData = null;
+function loadWeekTransits(cb){
+  if(!birthData){if(cb)cb();return;}
+  apiPost('/api/transits/week',birthData).then(function(d){weekData=d;if(cb)cb();}).catch(function(){dailyData={reading:{},transitAspects:[]};if(cb)cb()});
+}
+function renderWeekBar(){
+  if(!weekData||!weekData.days||!weekData.days.length)return '';
+  var r='<div style="display:flex;gap:4px;overflow-x:auto;padding:4px 0;margin-bottom:6px">';
+  weekData.days.forEach(function(d){
+    var isToday=d.date===todayStr()?' style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.06)"':'';
+    var en=d.energy==='active'?'color:#a78bfa':d.energy==='moderate'?'color:#FFD93D':'';
+    r+='<div style="flex:0 0 80px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:6px;text-align:center"' + isToday + '><div style="font-size:8px;color:rgba(255,255,255,0.4)">'+d.weekday+'</div><div style="font-size:11px;color:rgba(255,255,255,0.9);margin:2px 0">'+d.date.slice(5).replace('-','/')+'</div><div style="font-size:9px;color:rgba(255,255,255,0.5)">☽ '+d.moon+'</div><div style="font-size:8px;'+en+'">'+d.energyLabel+'</div></div>';
+  });
+  return r+'</div>';
+}
+
+function loadTimeline(){
+  if(!birthData){toast('请先生成性格画像');return;}
+  var el=$('scrollArea');
+  el.innerHTML+='<div class="loading" id="tlLoad"><span></span><span></span><span></span><span></span><span></span></div>';
+  apiPost('/api/predict/timeline',{birthDate:birthData.birthDate,birthTime:birthData.birthTime,lat:birthData.lat,lng:birthData.lng,days:30}).then(function(d){
+    var tl=$('tlLoad');if(tl)tl.remove();
+    if(!d||!d.periods||!d.periods.length){toast('暂无重要趋势');return;}
+    var html='<div class="sec-title">未来30天重要趋势</div>';
+    d.periods.forEach(function(p){
+      html+='<div style="background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px;margin-bottom:6px">';
+      html+='<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px">'+p.start.slice(0,4)+'年'+parseInt(p.start.slice(5,7))+'月'+parseInt(p.start.slice(8,10))+'日 — '+parseInt(p.end.slice(5,7))+'月'+parseInt(p.end.slice(8,10))+'日</div>';
+      if(p.domains){
+        var icons={career:'💼',finance:'💰',love:'❤️',health:'💪',growth:'🧘'},labels={career:'事业',finance:'财务',love:'感情',health:'健康',growth:'心理'};
+        ['career','finance','love','health','growth'].forEach(function(k){
+          if(p.domains[k]&&p.domains[k]!=='无明显影响')html+='<div style="font-size:11px;color:rgba(255,255,255,0.7);padding:2px 0"><span style="margin-right:4px">'+(icons[k]||'')+'</span>'+p.domains[k]+'</div>';
+        });
+      }
+      html+='</div>';
+    });
+    el.innerHTML+=html;
+  }).catch(function(){toast('加载失败')});
+}
+
+function showTimeCorrection(){
+  if(!birthData){toast('请先生成性格画像');return;}
+  apiPost('/api/natal/ascendants',{birthDate:birthData.birthDate,lat:birthData.lat,lng:birthData.lng}).then(function(d){
+    if(!d.ranges||!d.ranges.length){toast('数据不可用');return;}
+    var items=d.ranges.map(function(r){return r.label+' → 上升 '+r.ascendant.sign+' '+r.ascendant.degree+'°';});
+    var html='<div style="font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:10px">选择你的出生时间段</div>';
+    d.ranges.forEach(function(r,i){
+      html+='<div style="padding:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:8px;margin-bottom:4px;cursor:pointer" onclick="applyTimeCorrection(\''+r.time+'\',\''+r.ascendant.sign+'\',\''+r.ascendant.degree+'\')"><div style="font-size:13px;color:rgba(255,255,255,0.85)">'+r.label+'</div><div style="font-size:11px;color:#a78bfa;margin-top:2px">上升 '+r.ascendant.sign+' '+r.ascendant.degree+'°</div></div>';
+    });
+    showModal(html);
+  }).catch(function(){toast('加载失败')});
+}
+function applyTimeCorrection(time,sign,deg){
+  if(birthData){birthData.birthTime=time;delete birthData.timeUnknown;store('birth_data',birthData);natalReading=null;store('natal_reading',null);}
+  closeModal();renderProfile();toast('已更新为 '+time);
+}
+function init(){
+  birthData=store('birth_data');
+  natalReading=store('natal_reading');
+  friends=store('friends')||[];
+  groups=store('groups')||[];
+  switchTab(0);
+  setTimeout(function(){
+    var s=$('splash');if(s)s.classList.add('hide');
+    setTimeout(function(){var a=$('app');if(a)a.classList.add('show')},600);
+  },1500);
+}
+// ═══════════════════════════════════════════════════════════════
+// Daily Tab
+// ═══════════════════════════════════════════════════════════════
+function renderDaily(){
+  var el=$('scrollArea');
+  if(!selectedDate)selectedDate=todayStr();
+  var dates=getDateNav();
+  var html='';
+  // Date nav
+  html+='<div class="date-nav">';
+  dates.forEach(function(d){
+    html+='<button class="date-btn'+(d.str===selectedDate?' active':'')+'" onclick="selectDate(\''+d.str+'\')">'+d.md+'<span class="dow">'+d.dow+'</span></button>';
+  });
+  html+='</div>';
+
+  // 未登录：每日星座日签（12星座轮换）
+  if(!hasBirth()){
+    previewSign=getSignForDate(parseDateStr(selectedDate));
+    if(!dailyData){
+      html+='<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>';
+      el.innerHTML=html;
+      loadDailyReading(function(){if(typeof renderDaily=='function')renderDaily();});
+      return;
+    }
+    var r=dailyData.reading||{};
+    var dLabel=selectedDate.slice(0,4)+'年'+parseInt(selectedDate.slice(5,7))+'月'+parseInt(selectedDate.slice(8,10))+'日';
+    // 星座头
+    html+='<div class="guest-sign-wrap">';
+    html+='<div class="guest-sign-glyph">'+(PREVIEW_GLYPHS[previewSign]||'')+'</div>';
+    html+='<div class="guest-sign-name">'+previewSign+'</div>';
+    html+='<div class="guest-sign-sub">每日星座日签 · '+dLabel+'</div>';
+    html+='</div>';
+    // push
+    if(r.push)html+='<div class="push-banner">'+r.push+'</div>';
+    // 运势
+    html+='<div class="daily-card"><div class="daily-card-label">今日运势</div><div class="daily-divider"></div>';
+    html+='<div class="daily-body">'+(r.fortune||r.horoscope||'')+'</div></div>';
+    // 6维生活处方
+    if(r.advice){
+      html+='<div class="sec-title">六维生活处方</div><div class="advice-grid">';
+      var am={style:'穿搭',behavior:'行为',psychology:'心理',relationships:'关系',career:'事业',wellness:'能量'};
+      for(var k in am){if(r.advice[k])html+='<div class="advice-card"><div class="advice-label">'+am[k]+'</div><div class="advice-text">'+r.advice[k]+'</div></div>';}
+      html+='</div>';
+    }
+    // 分享卡片
+    html+='<button class="op-share-btn" onclick="openShareCard()">生成分享卡片</button>';
+    // 登录引导
+    html+='<div class="guest-cta" onclick="switchTab(1)"><div class="guest-cta-main">输入出生信息，生成你的专属日签</div><div class="guest-cta-sub">每日星座只对应太阳星座 · 专属日签按你的出生星盘计算</div></div>';
+    el.innerHTML=html;
+    return;
+  }
+
+  // 登录：个性化日签（只有自己的，看不到轮换星座）
+  previewSign=null;
+  // Section pills
+  html+='<div class="pill-group">';
+  ['今日天象','领域解读','相位之间','生活处方'].forEach(function(l,i){
+    html+='<button class="pill'+(i===dailySection?' active':'')+'" onclick="dailySection='+i+';renderDaily()">'+l+'</button>';
+  });
+  html+='</div>';
+
+  if(!dailyData){
+    html+='<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>';
+    el.innerHTML=html;
+    loadDailyReading(function(){if(typeof renderDaily=='function')renderDaily();});
+    return;
+  }
+
+  var r=dailyData.reading||{};
+  
+  // Section 0: Today's card + fortune
+  if(dailySection===0){
+    // Load week data for today
+    if(selectedDate===todayStr()&&!weekData)loadWeekTransits();
+
+    // Week bar (today only)
+    if(selectedDate===todayStr()&&weekData&&weekData.days)html+=renderWeekBar();
+
+    // Yesterday card (today only)
+    if(selectedDate===todayStr()){
+      var yStr=todayStr(-1);
+      var yRaw=localStorage.getItem(dailyCacheKey(yStr));
+      if(yRaw){try{
+        var yd=JSON.parse(yRaw);
+        if(yd&&yd.reading&&yd.reading.horoscope)html+='<div class="daily-card" style="opacity:0.4"><div class="daily-card-label">'+yStr+'</div><div class="daily-divider"></div><div class="daily-body">'+yd.reading.horoscope+'</div></div>';
+      }catch(_){}}
+    }
+
+    // Push banner (today only)
+    if(selectedDate===todayStr()&&r.push)html+='<div class="push-banner">'+r.push+'</div>';
+    // Daily card
+    html+='<div class="daily-card">';
+    if(selectedDate===todayStr()){
+      html+='<div class="daily-card-label">'+selectedDate+'</div>';
+      html+='<div class="daily-divider"></div>';
+      if(r.fortune)html+='<div class="daily-body">'+r.fortune+'</div>';
+      else if(r.horoscope)html+='<div class="daily-body">'+r.horoscope+'</div>';
+    } else if(selectedDate>todayStr()){
+      html+='<div class="daily-body"><div class="daily-hook">'+(r.tomorrowHook||'明天见')+'</div></div>';
+    } else {
+      html+='<div class="daily-card-label">'+selectedDate+'</div>';
+      html+='<div class="daily-divider"></div>';
+      html+='<div class="daily-body">'+(r.horoscope||'')+'</div>';
+    }
+    html+='</div>';
+    // Transit alerts
+    if(dailyData.transitAspects&&dailyData.transitAspects.length>0&&selectedDate===todayStr()){
+      var top=dailyData.transitAspects.slice(0,3);
+      html+='<div class="sec-title">☉今日运势</div>';
+      html+='<div class="daily-card"><div class="daily-body">';
+      top.forEach(function(a){
+        var tip=getTransitTip(a.transitBody,a.natalBody,a.aspect);
+        html+='<div style="margin-bottom:6px">'+a.aspect+'（'+a.transitBody+'/'+a.natalBody+'）'+tip+'</div>';
+      });
+      html+='</div></div>';
+    }
+  }
+  
+  // Section 1: Domains
+  if(dailySection===1&&r.domains){
+    html+='<div class="domain-grid">';
+    var dl={love:'爱情',friends:'友谊',work:'事业',family:'家庭',growth:'个人成长',finance:'财务',health:'健康'};
+    for(var k in dl){
+      var dm=r.domains[k];
+      if(dm&&dm.analysis)html+='<div class="domain-card"><div class="domain-card-title">'+dl[k]+(dm.score?' <span style="font-size:9px;color:rgba(255,255,255,0.4)">['+dm.score+']</span>':'')+'</div><div class="domain-card-body">'+dm.analysis+'</div></div>';
+    }
+    html+='</div>';
+  }
+  
+  // Section 2: Aspects + keywords
+  if(dailySection===2){
+    if(dailyData.transitAspects&&dailyData.transitAspects.length>0){
+      dailyData.transitAspects.forEach(function(a){
+        html+='<div class="aspect-chip"><span class="chip-score">'+a.score+'</span><span class="chip-name">'+a.aspect+'</span><span class="chip-bodies">行运 <strong>'+a.transitBody+'</strong> · 本命 <strong>'+a.natalBody+'</strong></span></div><div class="chip-tip">'+getTransitTip(a.transitBody,a.natalBody,a.aspect)+'</div>';
+      });
+    }
+    if(r.keywords&&r.keywords.length){
+      html+='<div style="text-align:center;padding:6px 0">';
+      r.keywords.forEach(function(kw){html+='<span class="tag">'+kw+'</span>'});
+      html+='</div>';
+    }
+  }
+  
+  // Section 3: Advice
+  if(dailySection===3&&r.advice){
+    html+='<div class="advice-grid">';
+    var am={style:'穿搭',behavior:'行为',psychology:'心理',relationships:'关系',career:'事业',wellness:'能量'};
+    for(var k in am){if(r.advice[k])html+='<div class="advice-card"><div class="advice-label">'+am[k]+'</div><div class="advice-text">'+r.advice[k]+'</div></div>';}
+    html+='</div>';
+  }
+  
+  el.innerHTML=html;
+}
+
+function selectDate(s){
+  selectedDate=s;
+  dailyData=null;
+  renderDaily();
+}
+
+// 当前日签对应的出生信息：预览星座用代表出生信息，否则用用户自己的
+function getReadingBirth(){
+  if(previewSign && PREVIEW_BIRTHS[previewSign]){
+    return {birthDate:PREVIEW_BIRTHS[previewSign], birthTime:'12:00', lat:39.91, lng:116.40};
+  }
+  return birthData;
+}
+function dailyCacheKey(target){return 'daily_reading_'+(previewSign||'me')+'_'+target}
+
+function loadDailyReading(cb){
+  var target=selectedDate||todayStr();
+  var key=dailyCacheKey(target);
+  var cached=localStorage.getItem(key);
+  if(cached){try{
+    var d=JSON.parse(cached);
+    if(d&&d.reading){
+      dailyData=d;
+      if(cb)cb();
+      return;
+    }
+  }catch(e){}}
+  var b=getReadingBirth();
+  if(!b){dailyData={reading:{}};if(cb)cb();return;}
+  apiPost('/api/daily/reading',{birthDate:b.birthDate,birthTime:b.birthTime,lat:b.lat,lng:b.lng,date:target}).then(function(d){
+    if(d&&d.reading){
+      dailyData=d;
+      localStorage.setItem(key,JSON.stringify(d));
+    }
+    if(cb)cb();
+  }).catch(function(){dailyData={reading:{}};if(cb)cb();toast('加载失败');});
+}
+
+// ═══ 每日星座日签：分享卡片 ═══
+function openShareCard(){
+  var r=dailyData.reading||{};
+  if(!previewSign||!r.fortune){toast('日签数据未就绪');return;}
+  var sign=previewSign, glyph=PREVIEW_GLYPHS[sign]||'';
+  var date=(selectedDate||todayStr());
+  var dStr=date.slice(0,4)+'年'+parseInt(date.slice(5,7))+'月'+parseInt(date.slice(8,10))+'日';
+  var advice=r.advice||{};
+  var am={style:'穿搭',behavior:'行为',psychology:'心理',relationships:'关系',career:'事业',wellness:'能量'};
+
+  var html='<div id="shareCard" style="width:720px;background:#0e0e12;padding:48px 44px;color:rgba(255,255,255,0.9);font-family:\'PingFang SC\',-apple-system,sans-serif;box-sizing:border-box">';
+  // Header
+  html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px">';
+  html+='<div style="font-size:30px;font-weight:600;letter-spacing:2px;color:rgba(255,255,255,0.92)">ORA<span style="color:#2DD4BF">星盘</span></div>';
+  html+='<div style="text-align:right;font-size:13px;color:rgba(255,255,255,0.5);line-height:1.8">'+dStr+'<br>每日日签</div>';
+  html+='</div>';
+  // Sign
+  html+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">';
+  html+='<div style="width:52px;height:52px;border-radius:50%;background:rgba(45,212,191,0.12);border:1px solid rgba(45,212,191,0.3);display:flex;align-items:center;justify-content:center;font-size:26px;color:#2DD4BF">'+glyph+'</div>';
+  html+='<div><div style="font-size:24px;font-weight:500;color:rgba(255,255,255,0.92)">'+sign+'</div><div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">太阳星座 · 通用版</div></div>';
+  html+='</div>';
+  // Push
+  if(r.push)html+='<div style="font-size:22px;font-weight:400;line-height:1.6;color:rgba(255,255,255,0.92);margin-bottom:24px">「'+r.push+'」</div>';
+  // Fortune
+  if(r.fortune)html+='<div style="font-size:16px;line-height:1.9;color:rgba(255,255,255,0.75);margin-bottom:32px">'+r.fortune+'</div>';
+  // 6 dimensions
+  html+='<div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:20px">';
+  html+='<div style="font-size:11px;color:#2DD4BF;letter-spacing:2px;margin-bottom:14px">六维生活处方</div>';
+  for(var k in am){
+    if(advice[k])html+='<div style="display:flex;margin-bottom:10px"><div style="flex:0 0 44px;font-size:13px;color:rgba(255,255,255,0.45);padding-top:1px">'+am[k]+'</div><div style="flex:1;font-size:14px;line-height:1.7;color:rgba(255,255,255,0.8)">'+advice[k]+'</div></div>';
+  }
+  html+='</div>';
+  // Footer
+  html+='<div style="margin-top:32px;text-align:center;font-size:12px;color:rgba(255,255,255,0.35);letter-spacing:1px">按你的出生星盘 · 生成专属日签<br>xinglian.online</div>';
+  html+='</div>';
+
+  showModal('<div style="text-align:center;margin-bottom:16px;font-size:14px;color:rgba(255,255,255,0.8)">'+sign+' 日签卡片预览</div>'+html+
+    '<div style="display:flex;gap:8px;margin-top:16px"><button class="btn-secondary" style="flex:1;padding:12px" onclick="exportCard()">保存图片</button><button class="btn-secondary" style="flex:1;padding:12px" onclick="closeModal()">关闭</button></div>');
+}
+function exportCard(){
+  var el=document.getElementById('shareCard');
+  if(!el){toast('卡片未生成');return;}
+  if(typeof html2canvas==='undefined'){toast('组件加载中，请重试');return;}
+  html2canvas(el,{backgroundColor:'#0e0e12',scale:2,useCORS:true,width:720}).then(function(c){
+    c.toBlob(function(b){
+      if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([b],'ORA-'+previewSign+'-日签.png',{type:'image/png'})]})){
+        navigator.share({files:[new File([b],'ORA-'+previewSign+'-日签.png',{type:'image/png'})]});
+      } else {
+        var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ORA-'+previewSign+'-日签.png';a.click();
+        toast('已保存');
+      }
+    },'image/png');
+  }).catch(function(){toast('导出失败');});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Chart Tab
+// ═══════════════════════════════════════════════════════════════
+function renderChart(){
+  var el=$('scrollArea');
+  if(!birthData){
+    el.innerHTML='<div class="card" style="padding:24px"><div style="text-align:center;font-size:24px;margin-bottom:6px">☉</div><div style="text-align:center;font-size:15px;margin-bottom:4px">生成你的性格画像</div><div class="form-group"><div class="form-label">出生日期</div><input class="form-input" id="chDate" type="date"></div><div class="form-group"><div class="form-label">出生时间</div><input class="form-input" id="chTime" type="time" value="12:00"></div><label style="display:flex;align-items:center;gap:6px;margin:6px 0 12px;font-size:10px;color:rgba(255,255,255,0.4);cursor:pointer"><input type="checkbox" id="chUnknown" style="accent-color:#a78bfa" onchange="document.getElementById(\'chTime\').disabled=this.checked">我不知道出生时间</label><div class="form-group"><div class="form-label">出生城市</div><input class="form-input" id="chCity" placeholder="如 北京"></div><button class="btn-primary" onclick="submitChart()">生成</button></div>';
+    return;
+  }
+  if(!natalReading){
+    el.innerHTML='<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>';
+    apiPost('/api/natal/reading',birthData).then(function(d){
+      natalReading=d;
+      store('natal_reading',d);
+      renderChart();
+    }).catch(function(){toast('加载失败');el.innerHTML='<div class="empty-state">加载失败</div>'});
+    return;
+  }
+  
+  var r=natalReading.reading||{},pos=natalReading.positions||[],asc=natalReading.ascendant||{};
+  var elm=calcElements(pos);
+  var html='';
+  // Big3
+  var sun=pos.find(function(p){return p.body==='Sun'});
+  var moon=pos.find(function(p){return p.body==='Moon'});
+  html+='<div class="big3"><div class="big3-item"><div class="big3-label">太阳</div><div class="big3-sign">'+(sun?sun.sign:'')+'</div><div class="big3-deg">'+(sun?sun.degree+'°':'')+'</div></div><div class="big3-item"><div class="big3-label">月亮</div><div class="big3-sign">'+(moon?moon.sign:'')+'</div><div class="big3-deg">'+(moon?moon.degree+'°':'')+'</div></div><div class="big3-item"><div class="big3-label">上升</div><div class="big3-sign">'+(asc.sign||'')+'</div><div class="big3-deg">'+(asc.degree?asc.degree+'°':'')+'</div></div></div>';
+  // Elements
+  html+='<div class="elements"><div class="element-item"><div class="element-dot" style="background:#D4735E"></div><div class="element-pct">'+elm.fire+'%</div><div class="element-label">火</div></div><div class="element-item"><div class="element-dot" style="background:#6B7B8D"></div><div class="element-pct">'+elm.earth+'%</div><div class="element-label">土</div></div><div class="element-item"><div class="element-dot" style="background:#FFD93D"></div><div class="element-pct">'+elm.air+'%</div><div class="element-label">风</div></div><div class="element-item"><div class="element-dot" style="background:#5A8FB4"></div><div class="element-pct">'+elm.water+'%</div><div class="element-label">水</div></div></div>';
+  // Canvas
+  html+='<canvas id="zodiacCanvas" style="width:100%;max-width:280px;height:280px;display:block;margin:0 auto"></canvas>';
+  // Planets
+  html+='<div class="sec-title">行星位置</div><div class="planet-grid">';
+  pos.forEach(function(p){html+='<div class="planet-cell" onclick="showPlanet(\''+p.body+'\')"><div class="planet-dot" style="background:'+(PLANET_COLORS[p.body]||'#888')+'"></div><div><div class="planet-name">'+p.name+'</div><div class="planet-pos">'+p.sign+' '+p.degree+'°</div></div></div>'});
+  html+='</div>';
+  // Readings
+  var rkeys=['sun','moon','rising','mercury','venus','mars','jupiter','saturn','uranus','neptune','pluto'];
+  rkeys.forEach(function(k){if(r[k]&&r[k].analysis)html+='<div class="reading-card"><div class="reading-card-title">'+(r[k].title||k)+'</div><div class="reading-card-sub">'+r[k].position+'</div><div class="reading-card-body">'+r[k].analysis+'</div>'+(r[k].keyword?'<div class="reading-card-kw">'+r[k].keyword+'</div>':'')+'</div>'});
+  if(r.stellium&&r.stellium.insight)html+='<div class="reading-card"><div class="reading-card-title">'+(r.stellium.title||'星群聚集')+'</div><div class="reading-card-sub">'+(r.stellium.description||'')+'</div><div class="reading-card-body">'+r.stellium.insight+'</div></div>';
+  // Aspects
+  if(r.topAspects&&r.topAspects.length){html+='<div class="sec-title">重要相位</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';r.topAspects.forEach(function(a){html+='<div class="reading-card" style="padding:8px"><div style="font-size:11px;color:rgba(255,255,255,0.9)">'+(a.pair||a.aspect)+'</div><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px">'+(a.meaning||'')+'</div></div>'});html+='</div>'}
+  // Domains
+  if(r.domains){html+='<div class="sec-title">领域分析</div><div class="domain-grid">';var dl2={love:'爱情',friends:'友谊',work:'事业',family:'家庭',growth:'个人成长',finance:'财务',health:'健康'};for(var k in dl2){var dm=r.domains[k];if(dm&&dm.analysis)html+='<div class="domain-card"><div class="domain-card-title">'+dl2[k]+'</div><div class="domain-card-body">'+dm.analysis+'</div></div>'}html+='</div>'}
+  // Advice
+  if(r.advice){html+='<div class="sec-title">行动指南</div><div class="advice-grid">';var am2={style:'穿搭',behavior:'行为',psychology:'心理',relationships:'关系',career:'事业',wellness:'能量'};for(var k in am2){if(r.advice[k])html+='<div class="advice-card"><div class="advice-label">'+am2[k]+'</div><div class="advice-text">'+r.advice[k]+'</div></div>'}html+='</div>'}
+  html+='<button class="btn-secondary" onclick="loadTimeline()" style="margin-top:6px">未来30天趋势</button><button class="btn-secondary" onclick="resetChart()" style="margin-top:10px">编辑出生信息</button>';
+  el.innerHTML=html;
+  setTimeout(drawChart,100);
+}
+
+function submitChart(){
+  var date=$('chDate').value,time=$('chTime').value||'12:00',unk=$('chUnknown');
+  if(!date){toast('请选择日期');return}
+  if(unk&&unk.checked)time='12:00';
+  birthData={birthDate:date,birthTime:time,lat:39.91,lng:116.40,timeUnknown:unk?unk.checked:false};
+  store('birth_data',birthData);
+  natalReading=null;
+  renderChart();
+}
+
+function resetChart(){natalReading=null;store('natal_reading',null);renderChart()}
+
+function drawChart(){
+  var cv=$('zodiacCanvas');if(!cv)return;
+  var ctx=cv.getContext('2d'),size=280,cx=size/2,cy=size/2,R=size*0.38,sr=size*0.27;
+  var pos=natalReading?natalReading.positions||[]:[];
+  ctx.clearRect(0,0,size,size);
+  for(var i=0;i<12;i++){
+    var a1=(-90+i*30)*Math.PI/180,a2=(-90+(i+1)*30)*Math.PI/180;
+    ctx.beginPath();ctx.arc(cx,cy,R,a1,a2);ctx.arc(cx,cy,sr,a2,a1,true);ctx.closePath();
+    ctx.fillStyle=i%2===0?'rgba(167,139,250,0.12)':'rgba(167,139,250,0.04)';ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx+sr*Math.cos(a2),cy+sr*Math.sin(a2));ctx.lineTo(cx+R*Math.cos(a2),cy+R*Math.sin(a2));
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=0.8;ctx.stroke();
+  }
+  ctx.beginPath();ctx.arc(cx,cy,sr,0,2*Math.PI);ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=0.8;ctx.stroke();
+  // Aspect lines
+  for(var i=0;i<pos.length;i++){for(var j=i+1;j<pos.length;j++){
+    var dist=Math.abs(((pos[i].lon-pos[j].lon)%360+360)%360),d=Math.min(dist,360-dist),aspects=[[0,8],[60,4],[90,6],[120,6],[180,8]];
+    for(var ai=0;ai<aspects.length;ai++){if(Math.abs(d-aspects[ai][0])<=aspects[ai][1]){
+      var a1=(-90+pos[i].lon)*Math.PI/180,a2=(-90+pos[j].lon)*Math.PI/180;
+      ctx.beginPath();ctx.moveTo(cx+R*Math.cos(a1),cy+R*Math.sin(a1));ctx.lineTo(cx+R*Math.cos(a2),cy+R*Math.sin(a2));
+      ctx.strokeStyle='rgba(167,139,250,'+(0.3+0.4*(1-Math.abs(d-aspects[ai][0])/aspects[ai][1]))+')';ctx.lineWidth=aspects[ai][0]===0?1:0.6;
+      if(aspects[ai][0]!==0)ctx.setLineDash([3,4]);ctx.stroke();ctx.setLineDash([]);break;
+    }}
+  }}
+  // Planets
+  for(var p of pos){
+    var angle=(-90+p.lon)*Math.PI/180,px=cx+R*Math.cos(angle),py=cy+R*Math.sin(angle),col=PLANET_COLORS[p.body]||'#d4bc9a',r2=p.body==='Sun'||p.body==='Moon'?4:3;
+    ctx.beginPath();ctx.arc(px,py,r2,0,2*Math.PI);ctx.fillStyle=col;ctx.fill();ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=0.8;ctx.stroke();
+  }
+  ctx.fillStyle='rgba(255,255,255,0.12)';ctx.font='8px "PingFang SC"';ctx.textAlign='center';ctx.fillText('STAR',cx,cy-3);ctx.fillText('LINK',cx,cy+6);
+}
+
+function showPlanet(body){
+  var r=natalReading.reading;if(!r||!r[body.toLowerCase()])return;
+  var p=r[body.toLowerCase()];
+  showModal('<div style="font-family:monospace;font-size:9px;color:rgba(255,255,255,0.5);margin-bottom:6px">'+(PLANET_NAMES[body]||body)+'</div><div style="font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:8px">'+(p.title||'')+'</div><div style="font-size:13px;line-height:1.8;color:rgba(255,255,255,0.8)">'+p.analysis+'</div>'+(p.keyword?'<div style="display:inline-block;background:rgba(255,255,255,0.06);border-radius:999px;padding:3px 10px;font-size:9px;color:rgba(255,255,255,0.5);margin-top:10px">'+p.keyword+'</div>':''));
+}
+
+function showModal(html){
+  var m=document.createElement('div');m.className='modal-overlay';m.onclick=function(e){if(e.target===m)m.remove()};
+  m.innerHTML='<div class="modal-content"><button class="modal-close" onclick="this.parentElement.parentElement.remove()">✕</button>'+html+'</div>';
+  document.body.appendChild(m);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Friends Tab
+// ═══════════════════════════════════════════════════════════════
+function renderFriends(){
+  var el=$('scrollArea');
+  var html='';
+  // Groups
+  groups.forEach(function(g){html+='<div class="friend-item" onclick="viewGroup(\''+g.id+'\')"><span style="font-size:20px">◈</span><div style="flex:1"><div class="friend-name">'+g.name+'</div><div class="friend-sign">'+(g.memberIds||[]).length+' 位成员</div></div><button class="friend-del" onclick="event.stopPropagation();removeGroup(\''+g.id+'\')">×</button></div>'});
+  html+='<button class="btn-secondary" onclick="showCreateGroup()">+ 创建群组</button>';
+  html+='<div class="sec-title">星友</div>';
+  friends.forEach(function(f){html+='<div class="friend-item" onclick="viewSynastry(\''+f.id+'\')"><span style="font-size:20px">'+f.name.slice(0,1)+'</span><div style="flex:1"><div class="friend-name">'+f.name+'</div><div class="friend-sign">'+(f.zodiac||'')+'</div></div><button class="friend-del" onclick="event.stopPropagation();removeFriend(\''+f.id+'\')">×</button></div>'});
+  html+='<button class="btn-secondary" onclick="showAddFriend()">+ 添加星友</button>';
+  el.innerHTML=html;
+}
+
+function showAddFriend(){
+  showModal('<div class="form-group"><div class="form-label">姓名</div><input class="form-input" id="fname" placeholder="输入名字"></div><div class="form-group"><div class="form-label">出生日期</div><input class="form-input" id="fbirth" type="date"></div><div class="form-group"><div class="form-label">出生时间</div><input class="form-input" id="ftime" type="time" value="12:00"></div><button class="btn-primary" onclick="addFriend()">添加</button>');
+}
+function addFriend(){
+  var name=$('fname').value,date=$('fbirth').value,time=$('ftime').value;
+  if(!name||!date){toast('请填写完整');return}
+  var f={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:name,birthDate:date,birthTime:time,lat:39.91,lng:116.40};
+  friends.push(f);store('friends',friends);closeModal();renderFriends();toast('已添加');
+}
+function removeFriend(id){friends=friends.filter(function(f){return f.id!==id});store('friends',friends);renderFriends()}
+function closeModal(){var m=document.querySelector('.modal-overlay');if(m)m.remove()}
+
+function showCreateGroup(){
+  var html='<div class="form-group"><div class="form-label">群组名称</div><input class="form-input" id="gname" placeholder="输入群组名"></div><div class="form-group"><div class="form-label">群组类型</div><select class="form-select" id="gtype"><option value="friend">朋友群</option><option value="work">工作群</option><option value="family">家庭群</option><option value="interest">兴趣群</option><option value="partner">合伙（生意）</option><option value="other">其他</option></select></div><div class="form-group"><div class="form-label">选择成员</div>';
+  friends.forEach(function(f){html+='<label style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;color:rgba(255,255,255,0.7)"><input type="checkbox" class="gm" value="'+f.id+'" style="accent-color:#a78bfa"> '+f.name+'</label>'});
+  html+='</div><button class="btn-primary" onclick="createGroup()">创建</button>';
+  showModal(html);
+}
+function createGroup(){
+  var name=$('gname').value,type=$('gtype').value,mems=[].map.call(document.querySelectorAll('.gm:checked'),function(cb){return cb.value});
+  if(!name){toast('请输入群组名');return}
+  groups.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:name,type:type,memberIds:mems});store('groups',groups);
+  closeModal();renderFriends();toast('群组已创建');
+}
+function removeGroup(id){groups=groups.filter(function(g){return g.id!==id});store('groups',groups);renderFriends()}
+
+function viewSynastry(fid){
+  var f=friends.find(function(ff){return ff.id===fid});
+  if(!f||!birthData){toast('数据不足');return}
+  showModal('<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>');
+  apiPost('/api/synastry-ds/deepseek',{birthDataA:{birthDate:birthData.birthDate,birthTime:birthData.birthTime,lat:birthData.lat,lng:birthData.lng},birthDataB:{birthDate:f.birthDate,birthTime:f.birthTime||'12:00',lat:f.lat,lng:f.lng},nameA:'你',nameB:f.name,relationshipType:'love'}).then(function(d){
+    showSynastryResult(d,f.name);
+  }).catch(function(){toast('分析失败')});
+}
+
+function showSynastryResult(d,name){
+  var r=d.reading||{};
+  var html='<div style="text-align:center;margin-bottom:12px"><div style="font-size:11px;color:rgba(255,255,255,0.4)">关系分析</div><div style="font-size:16px;font-weight:300;color:rgba(255,255,255,0.9);margin-top:4px">你 × '+name+'</div></div>';
+  if(r.push)html+='<div class="card" style="font-size:16px;color:rgba(255,255,255,0.92)">'+r.push+'</div>';
+  if(r.summary)html+='<div style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.7;background:#121216;border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:14px;margin-bottom:8px">'+r.summary+'</div>';
+  if(r.domains){html+='<div class="sec-title">领域分析</div><div class="domain-grid">';var dl3={emotional:'情感共鸣',intellectual:'心智交流',action:'行动节奏',growth:'共同成长',challenge:'需要留意',business:'共事合作'};for(var k in dl3){var dm=r.domains[k];if(dm&&dm.analysis)html+='<div class="domain-card"><div class="domain-card-title">'+dl3[k]+(dm.score?' <span style="font-size:9px;color:rgba(255,255,255,0.4)">('+dm.score+')</span>':'')+'</div><div class="domain-card-body">'+dm.analysis+'</div></div>'}html+='</div>'}
+  if(r.strengths&&r.strengths.length){html+='<div class="sec-title">优势</div>';r.strengths.forEach(function(s){html+='<div class="syn-item">• '+s+'</div>'})}
+  if(r.challenges&&r.challenges.length){html+='<div class="sec-title">挑战</div>';r.challenges.forEach(function(s){html+='<div class="syn-item">• '+s+'</div>'})}
+  if(r.keywords&&r.keywords.length){html+='<div style="text-align:center;padding:6px 0">';r.keywords.forEach(function(kw){html+='<span class="tag">'+kw+'</span>'});html+='</div>'}
+  if(r.advice){html+='<div class="advice-grid" style="margin-top:8px">';var am3={style:'风格',behavior:'行为',psychology:'心理',relationships:'关系'};for(var k in am3){if(r.advice[k])html+='<div class="advice-card"><div class="advice-label">'+am3[k]+'</div><div class="advice-text">'+r.advice[k]+'</div></div>'}html+='</div>'}
+  closeModal();showModal(html);
+}
+
+function viewGroup(gid){
+  if(!birthData){toast('请先生成性格画像');return}
+  var g=groups.find(function(gg){return gg.id===gid});
+  if(!g)return;
+  showModal('<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>');
+  var members=[{name:'我',birthDate:birthData.birthDate,birthTime:birthData.birthTime,lat:birthData.lat,lng:birthData.lng}];
+  g.memberIds.forEach(function(mid){
+    var f=friends.find(function(ff){return ff.id===mid});
+    if(f)members.push({name:f.name,birthDate:f.birthDate,birthTime:f.birthTime||'12:00',lat:f.lat,lng:f.lng});
+  });
+  apiPost('/api/synastry-ds/group',{members:members,groupName:g.name,groupType:g.type}).then(function(d){
+    showGroupResult(d,g.name);
+  }).catch(function(){toast('分析失败')});
+}
+
+function showGroupResult(d,name){
+  var r=d.reading||{};
+  var html='<div class="sec-title" style="margin-top:0">'+name+' · 群组分析</div><div class="card"><div style="font-size:16px;color:rgba(255,255,255,0.92)">'+(r.push||'')+'</div>'+(r.summary?'<div style="font-size:14px;color:rgba(255,255,255,0.75);line-height:1.7;margin-top:8px">'+r.summary+'</div>':'')+'</div>';
+  // 角色分配
+  if(r.roles&&r.roles.length){html+='<div class="sec-title">角色分配</div>';r.roles.forEach(function(rr){html+='<div class="syn-role-card"><div class="syn-role-name">'+rr.member+' — '+rr.role+'</div><div class="syn-role-why">'+rr.why+'</div></div>'})}
+  // 领域分析（和合盘一致）
+  if(r.domains){html+='<div class="sec-title">领域分析</div><div class="domain-grid">';var dl3={emotional:'情感氛围',intellectual:'沟通效率',action:'行动力',growth:'共同成长',challenge:'需要留意',business:'合作效能'};for(var k in dl3){var dm=r.domains[k];if(dm&&dm.analysis)html+='<div class="domain-card"><div class="domain-card-title">'+dl3[k]+(dm.score?' <span style="font-size:9px;color:rgba(255,255,255,0.4)">('+dm.score+')</span>':'')+'</div><div class="domain-card-body">'+dm.analysis+'</div></div>'}html+='</div>'}
+  // 关键词
+  if(r.keywords&&r.keywords.length){html+='<div style="text-align:center;padding:6px 0">';r.keywords.forEach(function(kw){html+='<span class="tag">'+kw+'</span>'});html+='</div>'}
+  // 优势
+  if(r.strengths&&r.strengths.length){html+='<div class="sec-title">优势</div>';r.strengths.forEach(function(s){html+='<div class="syn-item">• '+s+'</div>'})}
+  // 挑战（保留原有深度）
+  if(r.challenges&&r.challenges.length){html+='<div class="sec-title">挑战</div>';r.challenges.forEach(function(s){html+='<div class="syn-item">• '+s+'</div>'})}
+  // 行动指南
+  if(r.advice){html+='<div class="advice-grid" style="margin-top:8px">';var am4={collaboration:'协作',decision:'决策',conflict:'冲突',growth:'成长'};for(var k in am4){if(r.advice[k])html+='<div class="advice-card"><div class="advice-label">'+am4[k]+'</div><div class="advice-text">'+r.advice[k]+'</div></div>'}html+='</div>'}
+  closeModal();showModal(html);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Synastry Tab (Direct Input Form)
+// ═══════════════════════════════════════════════════════════════
+function renderSynastryForm(){
+  var el=$('scrollArea');
+  el.innerHTML='<div class="card" style="padding:24px"><div style="text-align:center;font-size:24px;margin-bottom:6px">⊕</div><div style="text-align:center;font-size:15px;margin-bottom:16px">输入对方的出生信息</div>'+
+    '<div class="form-group"><div class="form-label">对方姓名</div><input class="form-input" id="sName" placeholder="输入名字"></div>'+
+    '<div class="form-group"><div class="form-label">出生日期</div><input class="form-input" id="sDate" type="date"></div>'+
+    '<div class="form-group"><div class="form-label">出生时间</div><input class="form-input" id="sTime" type="time" value="12:00"></div>'+
+    '<div class="form-group"><div class="form-label">关系类型</div><select class="form-select" id="sRelation"><option value="love">恋人</option><option value="friend">朋友</option><option value="colleague">同事/合伙人</option><option value="family">家人</option><option value="ambiguous">暧昧探索</option><option value="other">其他</option></select></div>'+
+    '<button class="btn-primary" onclick="submitSynastry()">查看分析</button></div>';
+}
+
+function submitSynastry(){
+  var name=$('sName').value,date=$('sDate').value,time=$('sTime').value||'12:00',rel=$('sRelation').value;
+  if(!name||!date){toast('请填写完整');return}
+  if(!birthData){toast('请先生成性格画像');return}
+  showModal('<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>');
+  apiPost('/api/synastry-ds/deepseek',{birthDataA:{birthDate:birthData.birthDate,birthTime:birthData.birthTime,lat:birthData.lat,lng:birthData.lng},birthDataB:{birthDate:date,birthTime:time,lat:39.91,lng:116.40},nameA:'你',nameB:name,relationshipType:rel}).then(function(d){
+    showSynastryResult(d,name);
+  }).catch(function(){toast('分析失败')});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Void Tab
+// ═══════════════════════════════════════════════════════════════
+var voidDomain='love';
+var VL={love:'爱情',friends:'友谊',work:'事业',family:'家庭',growth:'个人成长',finance:'财务',health:'健康'};
+var VQ={love:['我容易吸引什么样的人？','我在关系中最大的模式是什么？','我在爱情中最大的弱点是什么？','什么样的相处方式最适合我？'],friends:['我在友谊中扮演什么角色？','什么样的朋友最适合我？','我的社交模式有什么特点？'],work:['我的职业天赋是什么？','什么样的工作最适合我？','我适合创业还是打工？'],family:['我的家庭模式对我有什么影响？','我该如何与家人更好地相处？'],growth:['我这一生的核心课题是什么？','我该如何突破当前的困境？'],finance:['我与金钱的关系是什么？','我的财务趋势如何？'],health:['我的身体能量特点是什么？','我需要留意哪些健康领域？']};
+
+function renderVoid(){
+  var el=$('scrollArea');
+  var html='<div class="void-header"><div class="void-title">虚空</div><div class="void-sub">ASK THE VOID</div></div><div class="void-domains">';
+  for(var k in VL)html+='<button class="void-btn'+(k===voidDomain?' active':'')+'" onclick="voidDomain=\''+k+'\';renderVoid()">'+VL[k]+'</button>';
+  html+='</div>';
+  var qs=VQ[voidDomain]||[];
+  if(qs.length){html+='<div class="sec-title">选择一个问题</div>';qs.forEach(function(q){html+='<button class="void-preset" onclick="askVoid(\''+q.replace(/'/g,"\\'")+'\')">'+q+'</button>'})}
+  html+='<div class="form-group" style="margin-top:10px"><div class="form-label">或输入你的问题</div><input class="void-input" id="vInput" placeholder="输入关于 '+(VL[voidDomain]||'')+' 的问题..."></div><button class="btn-primary" onclick="askVoid(\'\')">提问</button>';
+  el.innerHTML=html;
+}
+
+function askVoid(q){
+  var inp=$('vInput');if(!q&&inp)q=inp.value.trim();
+  if(!q){toast('请输入问题');return}
+  if(!birthData){toast('请先生成性格画像');return}
+  showModal('<div class="loading"><span></span><span></span><span></span><span></span><span></span></div>');
+  apiPost('/api/void/ask',{question:q,domain:voidDomain,birthData:birthData}).then(function(d){
+    closeModal();showModal('<div class="void-modal-text">'+(d.answer||'暂无回答')+'</div>');
+  }).catch(function(){toast('回答失败')});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Profile Tab
+// ═══════════════════════════════════════════════════════════════
+function renderProfile(){
+  var el=$('scrollArea');
+  var html='<div class="sec-title">星·链</div><div class="sec-title">出生信息</div>';
+  if(birthData){
+    html+='<div class="card"><div class="profile-item"><span>日期</span><span class="profile-val">'+birthData.birthDate+'</span></div><div class="profile-item"><span>时间</span><span class="profile-val">'+birthData.birthTime+'</span>'+(birthData.timeUnknown?'<span style="font-size:10px;color:#a78bfa;cursor:pointer" onclick="showTimeCorrection()">未知 · 校正</span>':'')+'</div><div class="profile-item" style="border-bottom:none"><span>地点</span><span class="profile-val">39.91, 116.40</span></div></div>';
+    html+='<div style="display:flex;gap:6px"><button class="btn-secondary" onclick="editProfile()" style="flex:1">编辑</button><button class="btn-secondary" onclick="showTimeCorrection()" style="flex:1">校正时间</button></div>';
+  } else {
+    html+='<div class="card"><div class="profile-item" style="border-bottom:none;justify-content:center;padding:20px 0"><span style="font-size:13px;color:rgba(255,255,255,0.5)">尚未录入</span></div></div>';
+    html+='<button class="btn-secondary" onclick="editProfile()">录入出生信息</button>';
+  }
+  html+='<div class="sec-title">设置</div><div class="card"><div class="profile-item"><span>清理缓存</span><span style="font-size:11px;color:rgba(255,255,255,0.3);cursor:pointer" onclick="clearCache()">清理</span></div><div class="profile-item" style="border-bottom:none"><span>版本</span><span class="profile-val">v1.0.0</span></div></div>';
+  html+='<div class="sec-title">关于</div><div class="card"><div class="profile-item" onclick="showModal(\'<div style=font-size:13px;line-height:1.8;color:rgba(255,255,255,0.8)>Star-Link 尊重你的隐私。所有数据均存储在本地。使用 DeepSeek API 生成性格分析，仅传输行星位置数据，不收集任何个人身份信息。</div>\')" style="cursor:pointer"><span>隐私政策</span><span style="color:rgba(255,255,255,0.2)">›</span></div><div class="profile-item" style="border-bottom:none" onclick="showModal(\'<div style=font-size:13px;line-height:1.8;color:rgba(255,255,255,0.8)>ORA星链 v1.0.0<br>基于天文数据和 AI 的性格分析工具<br><br>ORA · 天上的事，说给人听</div>\')" style="cursor:pointer"><span>关于</span><span style="color:rgba(255,255,255,0.2)">›</span></div></div>';
+  html+='<button class="btn-secondary" onclick="if(confirm(\'确定要清除所有数据？\')){localStorage.clear();birthData=null;natalReading=null;friends=[];groups=[];renderProfile()}" style="margin-top:10px;color:rgba(255,255,255,0.3)">重置所有数据</button>';
+  el.innerHTML=html;
+}
+
+function clearCache(){
+  var keys=Object.keys(localStorage);
+  for(var i=0;i<keys.length;i++){if(keys[i].indexOf('daily_reading_')===0)localStorage.removeItem(keys[i]);}
+  dailyData=null;toast('缓存已清理');
+}
+
+function editProfile(){
+  showModal('<div class="form-group"><div class="form-label">出生日期</div><input class="form-input" id="eDate" type="date" value="'+(birthData?birthData.birthDate:'1990-01-01')+'"></div><div class="form-group"><div class="form-label">出生时间</div><input class="form-input" id="eTime" type="time" value="'+(birthData?birthData.birthTime:'12:00')+'"></div><div class="form-group"><div class="form-label">出生城市</div><input class="form-input" id="eCity" placeholder="如 北京" value="北京"></div><button class="btn-primary" onclick="saveProfile()">保存</button>');
+}
+function saveProfile(){
+  var d=$('eDate').value,t=$('eTime').value||'12:00';
+  if(!d){toast('请选择日期');return}
+  birthData={birthDate:d,birthTime:t,lat:39.91,lng:116.40};
+  store('birth_data',birthData);natalReading=null;store('natal_reading',null);
+  closeModal();renderProfile();toast('已保存');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Init & Load Push
+// ═══════════════════════════════════════════════════════════════
+apiGet('/api/daily/guest').then(function(d){if(d&&d.push){var el=document.querySelector('.push-banner');if(el)el.textContent=d.push;}}).catch(function(){});
+
+init();
+</script>
+</body>
+</html>

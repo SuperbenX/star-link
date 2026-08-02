@@ -9,6 +9,18 @@ const houses = require('../engine/houses');
 const prompt = require('../services/prompt');
 const cache = require('../services/cache');
 
+/* ═══ 推送文案（访客/未登录）═══ */
+router.get('/guest', (req, res) => {
+  const cacheKey = 'push_guest_' + new Date().toISOString().slice(0,10);
+  const cached = cache.get(cacheKey);
+  if (cached) return res.json(cached);
+  const positions = astro.getAllPositions(new Date());
+  const aspectList = aspects.calculate(positions);
+  const content = prompt.generateDaily(aspectList[0] || null);
+  cache.set(cacheKey, { push: content.push });
+  res.json({ push: content.push });
+});
+
 router.get('/:userId', (req, res) => {
   const { userId } = req.params;
   const cacheKey = `daily_${userId}_${new Date().toISOString().slice(0,10)}`;

@@ -158,7 +158,7 @@ router.post('/timeline', async (req, res) => {
 - 太阳：${sun ? sun.sign + sun.degree + '°' : '未知'}
 - 月亮：${moon ? moon.sign + moon.degree + '°' : '未知'}
 
-未来90天有${result.length}个重要行运时段：
+未来${numDays}天有${result.length}个重要行运时段：
 
 ${periodsDesc}
 

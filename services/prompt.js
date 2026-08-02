@@ -27,7 +27,7 @@ function getHoroscope(top) {
   let body, detail;
   switch (top.aspect) {
     case '合相':
-      body = `${n1}（${h1.id}）和${n2}（${h2.id}）在你的星盘上合相——这两股能量正在你体内融合。你在「${h1.d}」上的变化会直接影响「${h2.d}」。`;
+      body = `${n1}（${h1.id}）和${n2}（${h2.id}）在你的性格画像上合相——这两股能量正在你体内融合。你在「${h1.d}」上的变化会直接影响「${h2.d}」。`;
       detail = '建议：留意今天第一次让你感到"不对"的直觉。注意：融合期不适合做重大决定。';
       break;
     case '三分相':

@@ -11,7 +11,7 @@ router.post('/week', async (req, res) => {
       return res.status(400).json({ error: '请提供出生信息' });
     }
 
-    const cacheKey = 'week_' + birthDate + '_' + (birthTime || '12:00');
+    const cacheKey = 'week_' + birthDate + '_' + (birthTime || '12:00') + '_' + lat + '_' + lng;
     const cached = cache.get(cacheKey);
     if (cached) return res.json(cached);
 

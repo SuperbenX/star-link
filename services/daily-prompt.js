@@ -15,7 +15,7 @@ function buildDailyPrompt(transitPositions, natalPositions, aspects, ascendant, 
     `  ${i+1}. 行运${a.transitBody} ${a.aspect} 本命${a.natalBody}（强度 ${a.score}）`
   ).join('\n');
 
-  const systemPrompt = `你是一个冷静、一针见血的占星解读师。每天为用户生成一份"日签"。
+  const systemPrompt = `你是一个冷静、一针见血的性格分析顾问。每天为用户生成一份"日签"。
 
 风格：
 1. 用第二人称"你"，像朋友早上发来的微信，简短但有力
@@ -23,7 +23,10 @@ function buildDailyPrompt(transitPositions, natalPositions, aspects, ascendant, 
 3. 只说今天最重要的 1-2 件事，不列清单
 4. 结合具体行星活动解释"为什么今天会有这种感觉"
 5. 建议必须具体到"今天"可执行的动作
-6. 不讨好、不恐吓。说真话`;
+6. 不讨好、不恐吓。说真话
+7. 禁止套用通用话术。必须基于今天具体的行运相位、行星位置、角度数据来写分析
+8. 每天的推文必须完全不同角度。前一天写了恋爱能量，今天就写事业成长；前一天写了内心感受，今天就写外部行动。确保用户每天打开都有新鲜感
+9. horoscope 字段第一句话要像一个人在对用户说话，而不是在描述星象`;
 
   const userPrompt = `今天是 ${targetDate}。
 月相：${moonPhase}
@@ -33,7 +36,8 @@ function buildDailyPrompt(transitPositions, natalPositions, aspects, ascendant, 
 要求返回严格的 JSON 格式，不要包含任何其他文字：
 
 {
-  "push": "一句话推送，15字以内，有冲击力",
+  "push": "今日最打动人的一句话（15字以内，像朋友对你说的一句话，而不是星象描述。每次角度都要不同：今天说事业，明天说情绪，后天说关系，不要重复同一套路）",
+  "fortune": "今日运势（120-150字，一段完整流畅的运势分析。基于今天具体的行运相位和本命盘配置，从事业/财运/感情/健康中选2-3个方面展开，每一句都要有信息量，不要空话套话。最后一句落在行动建议上。）",
   "horoscope": "今日核心星象解读（2-3句，第一句就要有冲击力）",
   "tomorrowHook": "一句话明天预告，制造悬念（30字以内）",
   "domains": {
@@ -47,12 +51,12 @@ function buildDailyPrompt(transitPositions, natalPositions, aspects, ascendant, 
   },
   "keywords": ["关键词1", "关键词2", "关键词3"],
   "advice": {
-    "style": "穿搭风格建议（一句话，有画面感）",
+    "style": "穿搭/颜色/材质建议——结合今日星象说今天适合什么颜色和质感的衣物或配饰，让用户感受到你的能量流动。如果今天火元素活跃就提红色/暖色调，水元素活跃就提蓝色/黑色，风元素活跃就提白色/金属色，土元素活跃就提大地色系。只说颜色和材质给人的感受，不要说购买。语气像造型师不是销售。",
     "behavior": "行为建议——今天你应该注意的行为模式（一句话）",
     "psychology": "心理成长——今天容易陷入的思维陷阱（一句话）",
     "relationships": "关系建议——今天在关系中怎么做（一句话）",
     "career": "事业/创造力——今天工作的最佳打开方式（一句话）",
-    "wellness": "能量管理——今天身体需要什么（一句话）"
+    "wellness": "能量管理——今天身体需要什么，包括佩戴什么材质或颜色的小物来补充能量——只说感受和效果，不说购买（一句话）"
   }
 }
 
