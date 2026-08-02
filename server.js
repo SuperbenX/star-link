@@ -8,7 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 3120;
 
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // API 路由
 app.use('/api/daily', require('./routes/daily'));
@@ -25,9 +25,6 @@ app.use('/api/qr', require('./routes/qr'));
 
 // 健康检查
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
-
-// 主入口：根路径返回 mobile.html（未登录日签 + 登录个性化）
-app.get('/', (_, res) => res.sendFile(path.join(__dirname, 'public', 'mobile.html')));
 
 // SPA fallback — 其他路径保留，供内部直接访问文件
 app.get('*', (_, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
