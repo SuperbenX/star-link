@@ -8,6 +8,14 @@ const app = express();
 const PORT = process.env.PORT || 3120;
 
 app.use(express.json());
+// CORS — 允许本地工具（如小红书发布包生成器 file://）跨域调用 API
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API 路由
